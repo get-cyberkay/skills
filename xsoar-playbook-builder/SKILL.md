@@ -164,19 +164,19 @@ The `<offense_name>` folder name should match the offense description, using the
 
 #### 5a. QradarGetIssueCustomFields (always include)
 
-Copy verbatim from:
+Copy verbatim from this skill's own directory:
 ```
-/home/cyberkay/Desktop/qradar_playbooks/symantec/successful phishing detected/QradarGetIssueCustomFields.yml
+<skill_dir>/scripts/QradarGetIssueCustomFields.yml
 ```
-This script is identical across all playbooks — do not modify it.
+Where `<skill_dir>` is `~/.claude/skills/xsoar-playbook-builder/` (or the equivalent on the current machine — the file ships with the skill in `scripts/`). This script is identical across all playbooks — do not modify it.
 
 #### 5b. ParseBluecoatPayload (if Bluecoat log source)
 
-Copy verbatim from:
+Copy verbatim from this skill's own directory:
 ```
-/home/cyberkay/Desktop/qradar_playbooks/symantec/successful phishing detected/ParseBluecoatPayload.yml
+<skill_dir>/scripts/ParseBluecoatPayload.yml
 ```
-This script is identical across all Bluecoat playbooks — do not modify it.
+This script ships with the skill in `scripts/` and is identical across all Bluecoat playbooks — do not modify it.
 
 #### 5c. Custom parser (if non-Bluecoat log source)
 

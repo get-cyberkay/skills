@@ -1,0 +1,202 @@
+args:
+- description: QRadar offense ID to retrieve fields for
+  name: offense_id
+  required: true
+  supportedModules: []
+comment: To get custom fields from alert query for qradar by queirying XQL
+commonfields:
+  id: 7b073e1d-811e-496a-85da-62a303676250
+  version: -1
+dockerimage: demisto/python3:3.12.13.9059085
+enabled: true
+engineinfo: {}
+mainengineinfo: {}
+name: QradarGetIssueCustomFields
+pswd: ""
+restrictioncenter: {}
+runas: DBotWeakRole
+runonce: false
+script: |-
+  import time
+
+  def main(offense_id):
+      try:
+          offense_id = int(offense_id["offense_id"])
+
+          if not offense_id:
+              demisto.results({
+                  "Type": 4,
+                  "ContentsFormat": "text",
+                  "Contents": "offense_id argument is required but was not provided."
+              })
+              return
+
+
+          xql_query = """dataset = qradar_offenses
+  | filter offense_id = {oid}
+  | fields
+      offense_id,
+      offense_start_time,
+      offense_last_update,
+      offense_status,
+      offense_type,
+      offense_source,
+      offense_description,
+      offense_link,
+      offense_collector,
+      offense_magnitude,
+      offense_severity,
+      offense_credibility,
+      offense_relevance,
+      offense_categories,
+      offense_cat_high,
+      offense_cat_low,
+      offense_src_ip,
+      offense_dst_ip,
+      offense_dst_port,
+      offense_source_net,
+      offense_username,
+      offense_username_count,
+      offense_hostname,
+      offense_logsrc_type,
+      offense_log_sources,
+      offense_rules,
+      offense_event_count,
+      offense_payload
+  | limit 1""".format(oid=offense_id)
+
+          res = demisto.executeCommand("xdr-xql-generic-query", {
+              "query": xql_query,
+              "time_frame": "30 Days",
+              "query_name": "GetOffenseFields",
+              "max_fields": "30",
+              "parse_result_file_to_context": "false"
+          })
+          print("res= ", res)
+          if not res or res[0] is None:
+              demisto.results({
+                  "Type": 4,
+                  "ContentsFormat": "text",
+                  "Contents": "xdr-xql-generic-query returned no response."
+              })
+              return
+
+          if isError(res[0]):
+              demisto.results({
+                  "Type": 4,
+                  "ContentsFormat": "text",
+                  "Contents": "Query submission failed: {}".format(res[0].get('Contents'))
+              })
+              return
+
+          query_contents = res[0].get('Contents', {})
+          execution_id = None
+
+          if isinstance(query_contents, dict):
+              execution_id = res[0]['Contents']['execution_id']
+              print("query_id= ", execution_id)
+
+          if not execution_id:
+              execution_id = res[0]['Metadata']['pollingArgs']['query_id']
+              print("query_id2= ", execution_id)
+
+          if not execution_id:
+              demisto.results({
+                  "Type": 4,
+                  "ContentsFormat": "text",
+                  "Contents": "Could not extract execution_id. Full response: {}".format(str(res[0])[:500])
+              })
+              return
+
+
+          max_attempts = 10
+          wait_seconds = 5
+          poll_res = None
+
+          for attempt in range(max_attempts):
+              time.sleep(wait_seconds)
+
+              poll = demisto.executeCommand("xdr-xql-get-query-results", {
+                  "query_id": execution_id,
+                  "max_fields": "30",
+                  "parse_result_file_to_context": "false"
+              })
+              print("poll = ", poll)
+
+              if not poll or poll[0] is None:
+                  continue
+
+              if isError(poll[0]):
+                  demisto.results({
+                      "Type": 4,
+                      "ContentsFormat": "text",
+                      "Contents": "Polling failed on attempt {}: {}".format(attempt + 1, poll[0].get('Contents'))
+                  })
+                  return
+
+              poll_contents = poll[0].get('Contents', {})
+              status = None
+
+              if isinstance(poll_contents, dict):
+                  status = poll_contents.get('status')
+                  print("status = ", status)
+
+              if status == 'SUCCESS':
+                  poll_res = poll_contents
+                  break
+              elif status == 'FAIL':
+                  demisto.results({
+                      "Type": 4,
+                      "ContentsFormat": "text",
+                      "Contents": "XQL query failed during execution. Response: {}".format(str(poll_contents)[:500])
+                  })
+                  return
+              # status == 'PENDING' or anything else: keep polling
+
+          if poll_res is None:
+              demisto.results({
+                  "Type": 4,
+                  "ContentsFormat": "text",
+                  "Contents": "Query did not complete after {} attempts ({} seconds).".format(
+                      max_attempts, max_attempts * wait_seconds
+                  )
+              })
+              return
+
+          # Step 4: Extract results
+          rows = poll_res.get('results', [])
+          print("rows = ", rows)
+
+          if not rows:
+              demisto.results({
+                  "Type": 4,
+                  "ContentsFormat": "text",
+                  "Contents": "No records found for offense_id: {}. Poll response: {}".format(
+                      offense_id, str(poll_res)[:500]
+                  )
+              })
+              return
+
+          offense_data = rows[0] if rows else {}
+          print("offense_data = ", offense_data)
+
+          demisto.results({
+              "Type": 1,
+              "ContentsFormat": "json",
+              "Contents": offense_data,
+              "EntryContext": {"Offense": offense_data}
+          })
+
+      except Exception as e:
+          demisto.results({
+              "Type": 4,
+              "ContentsFormat": "text",
+              "Contents": "Error: {}".format(str(e))
+          })
+
+  main(demisto.args())
+scripttarget: 0
+signature: ""
+subtype: python3
+tags: []
+type: python

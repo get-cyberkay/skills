@@ -1,0 +1,60 @@
+args:
+- description: Raw pipe-delimited Bluecoat payload line, e.g. ${issue.utf8_payload}.
+    The script splits on '|' and extracts every key=value pair it finds.
+  name: payload
+  required: true
+  supportedModules: []
+comment: Splits a pipe-delimited Bluecoat payload and extracts every key=value pair
+  into the Bluecoat context. Values are unquoted; key names have (), and - replaced
+  with _.
+commonfields:
+  id: 17df3663-41a2-4fdd-b469-34bf83a826e8
+  version: -1
+dockerimage: demisto/python3:3.12.13.9059085
+enabled: true
+engineinfo: {}
+mainengineinfo: {}
+name: ParseBluecoatPayload
+outputs:
+- contextPath: Bluecoat
+  description: 'Object containing every key=value pair found in the payload (key names
+    normalized: (), - -> _).'
+  type: Unknown
+pswd: ""
+restrictioncenter: {}
+runas: DBotWeakRole
+runonce: false
+script: |
+  def main(payload):
+
+      result = {}
+      payload = str(payload["payload"])
+      for chunk in payload.split("|"):
+          if "=" in chunk:
+              key, _, value = chunk.partition("=")
+              key = key.replace("(", "_").replace(")", "").replace("-", "_")
+              value = value.strip('"')
+              result[key] = value
+
+      if result:
+          md = "### Bluecoat Payload\n|Field|Value|\n|---|---|\n"
+          for k, v in result.items():
+              md += "|{}|{}|\n".format(k, v)
+      else:
+          md = "No key=value pairs found in the payload."
+
+      demisto.results({
+          "Type": 1,
+          "ContentsFormat": "json",
+          "Contents": result,
+          "HumanReadable": md,
+          "EntryContext": {"Bluecoat": result},
+      })
+
+
+  main(demisto.args())
+scripttarget: 0
+signature: ""
+subtype: python3
+tags: []
+type: python
