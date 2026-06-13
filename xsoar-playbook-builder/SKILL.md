@@ -7,7 +7,7 @@ argument-hint: "<brief description of the offense the playbook should handle>"
 
 # /xsoar-playbook-builder
 
-Build a production-ready Cortex XSOAR playbook for a QRadar offense from scratch. Output: a new folder containing the main `.yml` playbook, `scripts/` with any custom automation scripts, and `emails-html/` with one HTML template per closure path.
+Build a production-ready Cortex XSOAR playbook for a QRadar offense by **adapting the closest existing reference playbook** — never building from a blank template. The reference playbooks in `reference-playbooks/` are the canonical structural model. Output: a new folder containing the main `.yml` playbook, `scripts/` with any custom automation scripts, and `emails-html/` with one HTML template per closure path.
 
 ---
 
@@ -24,6 +24,28 @@ From the sample issues, infer:
 - **Payload fields** — List every `key=value` field present in the sample payload.
 
 Do this analysis silently — do not narrate it before asking questions.
+
+---
+
+### Step 0b — Read the Reference Playbooks
+
+Before asking any questions, read both reference playbooks from this skill's directory:
+
+```
+~/.claude/skills/xsoar-playbook-builder/reference-playbooks/QRadar_Proxy_Successful_Phishing.yml
+~/.claude/skills/xsoar-playbook-builder/reference-playbooks/QRadar_Proxy_Excesive_Downloads_and_Uploads.yml
+```
+
+Read them in full (use chunked reads — both exceed 3000 lines). Build a mental model of each:
+
+| Reference | Best match for offenses that… |
+|---|---|
+| `QRadar_Proxy_Successful_Phishing.yml` | Involve a single indicator type (URL/host), use PAN-DB URL category as first classification, have NO IP blocking, and have a single direction (no upload/download split) |
+| `QRadar_Proxy_Excesive_Downloads_and_Uploads.yml` | Involve byte-transfer offenses with direction detection (upload vs download), include IP blocking, use VT + AbuseIPDB thresholds without PAN-DB, and have a multi-variant flow |
+
+**Choose the closest reference.** The new playbook will be built by copying the chosen reference's task structure and replacing only the values that differ (thresholds, EDL list IDs, whitelist names, indicator context paths, offense-specific task names, email content). The structural skeleton — task types, phase order, condition operator patterns, QRadar note/close/email/CloseInvestigation chain — is inherited unchanged.
+
+If the new offense does not clearly match either reference, ask the user which flow is closer before proceeding.
 
 ---
 
@@ -142,11 +164,19 @@ The `<offense_name>` folder name should match the offense description, using the
 
 #### 5a. QradarGetIssueCustomFields (always include)
 
-Copy from `~/.claude/skills/xsoar-playbook-builder/templates/QradarGetIssueCustomFields.yml` if it exists, or use the canonical version from the org's existing scripts directory. This script is identical across all playbooks.
+Copy verbatim from:
+```
+/home/cyberkay/Desktop/qradar_playbooks/symantec/successful phishing detected/QradarGetIssueCustomFields.yml
+```
+This script is identical across all playbooks — do not modify it.
 
 #### 5b. ParseBluecoatPayload (if Bluecoat log source)
 
-Copy from the org's existing scripts directory. This script is identical across all Bluecoat playbooks.
+Copy verbatim from:
+```
+/home/cyberkay/Desktop/qradar_playbooks/symantec/successful phishing detected/ParseBluecoatPayload.yml
+```
+This script is identical across all Bluecoat playbooks — do not modify it.
 
 #### 5c. Custom parser (if non-Bluecoat log source)
 
@@ -186,7 +216,21 @@ Generate one HTML file per closure path. Store all files in `emails-html/`.
    - BTP-BAU: `#1d4ed8` (blue)
    - BTP-Security Testing: `#6d28d9` (purple)
 3. **Subject line** — Embed in the YAML `send-mail` task, NOT in the HTML file. The HTML file contains only the body.
-4. **Required context variables in all emails:**
+   - **Manual investigation emails MUST begin their subject with `[Manual Investigation Required]`** — this prefix is mandatory and must appear first, before any offense name or ID, e.g.:
+     `[Manual Investigation Required] QRadar Offense - ${Offense.offense_id} - ${Offense.offense_description}`
+   - All other email subject lines should NOT carry this prefix.
+4. **Canonical QRadar closing reason IDs** — these are fixed org-wide values; always use them exactly:
+
+   | ID | Label | When to use |
+   |---|---|---|
+   | `155` | True Positive | Confirmed malicious activity — attacker intent verified |
+   | `157` | Benign True Positive — Business As Usual | Real event, destination/behaviour is approved (whitelisted, known-good) |
+   | `158` | False Positive | Detection fired incorrectly — rule misidentified benign activity as malicious |
+   | `159` | Benign True Positive — Security Testing | Real event triggered by authorised pen-test, red team, or phishing simulation |
+
+   These IDs are embedded in every `qradar-offense-update` task as `closing_reason_id`. Never invent new IDs. If the user requests a reason not in this list, ask them for the numeric ID from their QRadar instance.
+
+5. **Required context variables in all emails:**
    - `${issue.id}` — XSOAR investigation ID
    - `${Offense.offense_id}` — QRadar offense ID
    - `${Offense.offense_description}` — QRadar offense name
@@ -196,15 +240,46 @@ Generate one HTML file per closure path. Store all files in `emails-html/`.
    - `${Offense.offense_link}` — QRadar offense link (used in button)
    - `${incident.closingUserId}` — XSOAR closing user (manual closure emails)
    - `${Provide closing reason.Answers.name}` — CC target (manual closure emails)
-5. **Add playbook-specific fields** from the payload context (e.g., `${Bluecoat.cs_host}`, `${Bluecoat.dst}`, `${XferBytes}`, `${XferTitle}ed`) where relevant to the offense type.
-6. **Reputation results section** — Include VirusTotal and AbuseIPDB scores in emails where reputation enrichment ran (true positive and manual investigation templates).
-7. **Footer**: `<playbook display name> &middot; Issue ID ${issue.id}.`
+6. **Add playbook-specific fields** from the payload context (e.g., `${Bluecoat.cs_host}`, `${Bluecoat.dst}`, `${XferBytes}`, `${XferTitle}ed`) where relevant to the offense type.
+7. **Reputation results section** — Include VirusTotal and AbuseIPDB scores in emails where reputation enrichment ran (true positive and manual investigation templates).
+8. **Footer**: `<playbook display name> &middot; Issue ID ${issue.id}.`
 
 ---
 
 ### Step 7 — Generate the Main Playbook YAML
 
-Write the YAML file as `<OffenseName>.yml` (no spaces — use underscores or the original name with spaces, matching existing conventions). Assemble it using the task templates below.
+Write the YAML file as `<OffenseName>.yml` (no spaces — use underscores or the original name with spaces, matching existing conventions).
+
+#### CRITICAL: Use the Reference Playbook as the Structural Model
+
+Do **not** assemble the playbook from the generic task templates below as a first pass. Instead:
+
+1. **Start with the reference playbook chosen in Step 0b.** Copy its complete task map as the base.
+2. **Replace only what differs for the new offense:**
+   - Playbook `id` (new UUID), `name`, `description`
+   - Task names where they reference the old offense type
+   - Condition thresholds (VT count, AbuseIPDB score)
+   - EDL `list_id` values
+   - Whitelist `lists.<name>` values in condition operators
+   - Context paths that reference the parsed payload (e.g., `${Bluecoat.cs_host}` stays `${Bluecoat.cs_host}` unless the new offense uses a different parser and context key)
+   - Email `htmlBody` and `subject` content
+   - QRadar rule names in task descriptions
+3. **Keep identical across all playbooks:**
+   - Phase structure and order (Context Retrieval → Severity → Log Retrieval → Enrichment → Parsing → Whitelist → Reputation → Manual)
+   - `QradarGetIssueCustomFields` script task (copy verbatim)
+   - `ParseBluecoatPayload` script task (copy verbatim if Bluecoat log source)
+   - Severity mapping task and `ScaleToSetSeverityFrom` logic
+   - `QRadar - Get Offense Logs` sub-playbook task structure
+   - `Entity Enrichment - Generic v3` sub-playbook task structure
+   - QRadar note task → `qradar-offense-update` close task → `send-mail` task → `CloseInvestigation` terminal task — this 4-step chain is the same in every closure path
+   - The `Builtin|||setIncident` closeNotes task before the verdict condition
+   - The verdict condition reply options and branch labels (including `Fasle Positive`)
+   - The `inputs:` block (all keys, including `RunAdditionalSeach`)
+   - `sourceplaybookid: QRadar Generic`
+4. **Generate fresh UUIDs** for every task — never reuse UUIDs from the reference playbooks.
+5. **Renumber task IDs sequentially** from `"0"` — do not preserve the reference playbook's task ID numbers.
+
+The task templates below are provided as a fallback reference for structural details only. The reference playbook takes precedence.
 
 #### YAML root structure:
 

@@ -1,0 +1,3924 @@
+id: f0c56637-1a5c-48be-8e52-7e1c7a88ac60
+version: 143
+vcShouldKeepItemLegacyProdMachine: false
+aclrelations: []
+aclowner:
+  id: ""
+  type: ""
+  name: ""
+name: QRadar Proxy Excesive Downloads and Uploads
+description: The QRadar Generic playbook is executed for the QRadar Generic incident
+  type. It performs all the common parts of the investigation, including notifying
+  the SOC, enriching data for indicators and users, calculating severity, assigning
+  incidents, and notifying the SIEM admin about false positives.
+starttaskid: "0"
+tasks:
+  "0":
+    id: "0"
+    taskid: 30f5a2c1-f2ca-4606-8ed9-6de5b9309116
+    type: start
+    task:
+      id: 30f5a2c1-f2ca-4606-8ed9-6de5b9309116
+      version: -1
+      name: ""
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "56"
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 1555,
+          "y": 50
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "1":
+    id: "1"
+    taskid: c4a99c8a-9386-457a-8b45-222deb1ce611
+    type: condition
+    task:
+      id: c4a99c8a-9386-457a-8b45-222deb1ce611
+      version: -1
+      name: Should indicators be extracted and enriched?
+      description: Checks whether the Enrich playbook input is set to True.
+      type: condition
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#default#':
+      - "57"
+      "yes":
+      - "3"
+    separatecontext: false
+    conditions:
+    - label: "yes"
+      condition:
+      - - operator: isEqualString
+          left:
+            value:
+              complex:
+                root: inputs.Enrich
+            iscontext: true
+          right:
+            value:
+              simple: "True"
+          ignorecase: true
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 1555,
+          "y": 1330
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "3":
+    id: "3"
+    taskid: 2f183b9d-4a9c-4a3d-8856-c7a45e885e82
+    type: title
+    task:
+      id: 2f183b9d-4a9c-4a3d-8856-c7a45e885e82
+      version: -1
+      name: Enrich Data
+      type: title
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "9"
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 1667.5,
+          "y": 1515
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "9":
+    id: "9"
+    taskid: 7833f172-88e1-4b39-8ce1-c9cf2e87c8c8
+    type: regular
+    task:
+      id: 7833f172-88e1-4b39-8ce1-c9cf2e87c8c8
+      version: -1
+      name: Extract indicators from incident
+      description: Extracts all indicators from the incident and enriches the indicators
+        by using the reputation command defined for each indicator type.
+      script: Builtin|||extractIndicators
+      type: regular
+      iscommand: true
+      brand: Builtin
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "53"
+    scriptarguments:
+      filePath:
+        simple: ${QRadar}
+      investigationID:
+        simple: ${issue.id}
+      text:
+        simple: ${issue.actor_process_command_line}${QRadar}${QRadar.SourceIP}${QRadar.DestinationIP}${QRadar.Username}
+    reputationcalc: 2
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 1667.5,
+          "y": 1685
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "25":
+    id: "25"
+    taskid: e00596df-9ea6-4ed6-860b-d8a645c896ff
+    type: regular
+    task:
+      id: e00596df-9ea6-4ed6-860b-d8a645c896ff
+      version: -1
+      name: Determine incident severity according to offense info
+      description: Sets the incident severity according to the FieldToSetSeverityFrom
+        and ScaleToSetSeverityFrom playbook inputs, which specify the relevant offense
+        field and the scale for the severity translation.
+      script: Builtin|||setIncident
+      type: regular
+      iscommand: true
+      brand: Builtin
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "34"
+    scriptarguments:
+      severity:
+        complex:
+          root: ${Offense
+          accessor: offense_severity}
+          transformers:
+          - operator: MapRangeValues
+            args:
+              map_from:
+                value:
+                  simple: 1,2,3,4,5,6,7,8,9,10
+              map_to:
+                value:
+                  simple: 1,1,2,2,2,3,3,3,4,4
+              sep:
+                value:
+                  simple: ','
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 1667.5,
+          "y": 775
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "33":
+    id: "33"
+    taskid: 083fd5cb-7dea-4e35-80b0-e456ce859937
+    type: condition
+    task:
+      id: 083fd5cb-7dea-4e35-80b0-e456ce859937
+      version: -1
+      name: Use custom severity?
+      type: condition
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#default#':
+      - "34"
+      use custom:
+      - "25"
+    separatecontext: false
+    conditions:
+    - label: use custom
+      condition:
+      - - operator: isNotEqualString
+          left:
+            value:
+              simple: inputs.UseCustomSeveritySettings
+            iscontext: true
+          right:
+            value:
+              simple: "false"
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 1555,
+          "y": 590
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "34":
+    id: "34"
+    taskid: 05b1f7fd-345d-4cbc-82a7-ce4a4cba84b9
+    type: condition
+    task:
+      id: 05b1f7fd-345d-4cbc-82a7-ce4a4cba84b9
+      version: -1
+      name: Run additional searches?
+      type: condition
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#default#':
+      - "1"
+      "yes":
+      - "35"
+    separatecontext: false
+    conditions:
+    - label: "yes"
+      condition:
+      - - operator: isEqualString
+          left:
+            value:
+              simple: inputs.RunAdditionalSeach
+            iscontext: true
+          right:
+            value:
+              simple: "true"
+      - - operator: isNotEmpty
+          left:
+            value:
+              simple: ${Offense.offense_start_time}
+            iscontext: true
+      - - operator: isNotEmpty
+          left:
+            value:
+              simple: ${Offense.offense_id}
+            iscontext: true
+      - - operator: isEmpty
+          left:
+            value:
+              simple: ${QRadar.Events.[0].Magnitude}
+            iscontext: true
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 1555,
+          "y": 960
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "35":
+    id: "35"
+    taskid: 17fe7db9-b1ec-4eff-8fda-e89c2c4b5fc5
+    type: playbook
+    task:
+      id: 17fe7db9-b1ec-4eff-8fda-e89c2c4b5fc5
+      version: -1
+      name: QRadar - Get Offense Logs
+      description: "Works for QRadar integration version 3, v1 and v2 are deprecated.\n\nNote:
+        You can use the integration to fetch the events with the offense however it
+        will fetch the events according to the specified limit defined in the instance
+        settings. By using this playbook you can define an additional search to query
+        a larger number of logs.\n\nDefault playbook inputs use the QRadar incident
+        fields such as idoffense, starttime. These fields can be replaced but need
+        to point to relevant offense ID and starttime fields. "
+      playbookName: QRadar - Get Offense Logs
+      type: playbook
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "1"
+    scriptarguments:
+      ApiVersion:
+        simple: "20"
+      Fields:
+        simple: ${inputs.Fields}
+      GetOnlyCREEvents:
+        simple: ${inputs.GetOnlyCREEvents}
+      ID:
+        complex:
+          root: ${Offense.offense_id}
+          transformers:
+          - operator: FirstArrayElement
+      MaxLogsCount:
+        simple: ${inputs.MaxLogsCount}
+      StartTime:
+        complex:
+          root: ${Offense.offense_start_time}
+          transformers:
+          - operator: FirstArrayElement
+    separatecontext: true
+    continueonerrortype: ""
+    loop:
+      iscommand: false
+      exitCondition: ""
+      wait: 1
+      max: 100
+    view: |-
+      {
+        "position": {
+          "x": 1667.5,
+          "y": 1145
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "53":
+    id: "53"
+    taskid: 876d7d03-91df-4159-812b-a968c1c9031a
+    type: playbook
+    task:
+      id: 876d7d03-91df-4159-812b-a968c1c9031a
+      version: -1
+      name: Entity Enrichment - Generic v3
+      description: Enrich entities using one or more integrations.
+      playbookName: Entity Enrichment - Generic v3
+      type: playbook
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "57"
+    scriptarguments:
+      CVE:
+        complex:
+          root: CVE
+          accessor: ID
+      Domain:
+        complex:
+          root: Domain
+          accessor: Name
+          transformers:
+          - operator: uniq
+      Email:
+        complex:
+          root: Account
+          accessor: Email.Address
+          transformers:
+          - operator: uniq
+      Hostname:
+        complex:
+          root: Endpoint
+          accessor: Hostname
+          transformers:
+          - operator: uniq
+      IP:
+        complex:
+          root: IP
+          accessor: Address
+          transformers:
+          - operator: uniq
+      MD5:
+        complex:
+          root: File
+          accessor: MD5
+          transformers:
+          - operator: uniq
+      ResolveIP:
+        simple: "False"
+      SHA1:
+        complex:
+          root: File
+          accessor: SHA1
+          transformers:
+          - operator: uniq
+      SHA256:
+        complex:
+          root: File
+          accessor: SHA256
+          transformers:
+          - operator: uniq
+      URL:
+        complex:
+          root: URL
+          accessor: Data
+          transformers:
+          - operator: uniq
+      URLSSLVerification:
+        simple: "False"
+      UseReputationCommand:
+        simple: "False"
+      Username:
+        complex:
+          root: QRadar.Username
+          filters:
+          - - operator: isNotEmpty
+              left:
+                value:
+                  simple: QRadar.Username
+                iscontext: true
+          transformers:
+          - operator: SetIfEmpty
+            args:
+              applyIfEmpty: {}
+              defaultValue:
+                value:
+                  simple: Account.Username
+                iscontext: true
+          - operator: uniq
+    separatecontext: true
+    continueonerrortype: ""
+    loop:
+      iscommand: false
+      exitCondition: ""
+      wait: 1
+      max: 100
+    view: |-
+      {
+        "position": {
+          "x": 1667.5,
+          "y": 1870
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "54":
+    id: "54"
+    taskid: a7e120f3-ec53-430c-8eeb-af79b3d31dea
+    type: regular
+    task:
+      id: a7e120f3-ec53-430c-8eeb-af79b3d31dea
+      version: -1
+      name: includealertfields
+      scriptName: QradarGetIssueCustomFields
+      type: regular
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "33"
+    scriptarguments:
+      offense_id:
+        complex:
+          root: issue
+          accessor: details
+          transformers:
+          - operator: RegexGroups
+            args:
+              flags: {}
+              groups: {}
+              keys: {}
+              regex:
+                value:
+                  simple: qradar_id\=(\d+)
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 1442.5,
+          "y": 405
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "55":
+    id: "55"
+    taskid: a4ea91a1-41b4-4a2c-887f-c323f46668bc
+    type: regular
+    task:
+      id: a4ea91a1-41b4-4a2c-887f-c323f46668bc
+      version: -1
+      name: Extract Symantec payload
+      description: Parses a Bluecoat proxy payload and calculates total data transferred.
+        Extracts host/URL, source IP, destination IP/port and byte counts, and writes
+        them to the BluecoatUpload context.
+      scriptName: ParseBluecoatPayload
+      type: regular
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "99"
+    scriptarguments:
+      payload:
+        simple: '${Offense.offense_payload} '
+      payload_fallback:
+        simple: ${Offense.[0].offense_payload}
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 1442.5,
+          "y": 2240
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "56":
+    id: "56"
+    taskid: 17cc137a-f9a1-442a-89a2-5c66fed497ba
+    type: condition
+    task:
+      id: 17cc137a-f9a1-442a-89a2-5c66fed497ba
+      version: -1
+      name: Check offense fields in context
+      description: Check whether the values provided in arguments are equal. If either
+        of the arguments are missing, no is returned.
+      type: condition
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#default#':
+      - "54"
+      offense fields Present:
+      - "33"
+    separatecontext: false
+    conditions:
+    - label: offense fields Present
+      condition:
+      - - operator: isNotEmpty
+          left:
+            value:
+              simple: ${Offense.offense_description}
+            iscontext: true
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 1555,
+          "y": 220
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "57":
+    id: "57"
+    taskid: 46a832bd-3f5a-4763-8e1a-11421d90250d
+    type: condition
+    task:
+      id: 46a832bd-3f5a-4763-8e1a-11421d90250d
+      version: -1
+      name: Check Context for bluecoat payload
+      type: condition
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#default#':
+      - "55"
+      Bluecoat Payload in Context:
+      - "99"
+    separatecontext: false
+    conditions:
+    - label: Bluecoat Payload in Context
+      condition:
+      - - operator: isNotEmpty
+          left:
+            value:
+              simple: ${Bluecoat.devicetime}
+            iscontext: true
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 1555,
+          "y": 2055
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "58":
+    id: "58"
+    taskid: ec5afc28-94ae-4396-82e5-69f6f5125f39
+    type: condition
+    task:
+      id: ec5afc28-94ae-4396-82e5-69f6f5125f39
+      version: -1
+      name: Check URL in Whitelist
+      type: condition
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#default#':
+      - "70"
+      Url in Whitelist:
+      - "68"
+    separatecontext: false
+    conditions:
+    - label: Url in Whitelist
+      condition:
+      - - operator: inList
+          left:
+            value:
+              simple: ${Bluecoat.cs_host}
+            iscontext: true
+          right:
+            value:
+              simple: lists.Url-Large Downloads
+            iscontext: true
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 2435,
+          "y": 2980
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "59":
+    id: "59"
+    taskid: 68124cba-8c23-46fe-8e37-b050f12fd75b
+    type: regular
+    task:
+      id: 68124cba-8c23-46fe-8e37-b050f12fd75b
+      version: -1
+      name: Check IP reputation
+      description: Checks the specified IP address against the AbuseIP database.
+      script: '|||ip'
+      type: regular
+      iscommand: true
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "63"
+    scriptarguments:
+      ip:
+        simple: ${Bluecoat.dst},${Bluecoat.src}
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 1012.5,
+          "y": 3720
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "60":
+    id: "60"
+    taskid: 0ce2bdc7-5fd8-4a11-85b1-b891d51089f6
+    type: regular
+    task:
+      id: 0ce2bdc7-5fd8-4a11-85b1-b891d51089f6
+      version: -1
+      name: Check Url Reputation
+      description: Checks the reputation of a URL.
+      script: '|||url'
+      type: regular
+      iscommand: true
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "61"
+    scriptarguments:
+      url:
+        simple: ${Bluecoat.cs_host}
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 1227.5,
+          "y": 3350
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "61":
+    id: "61"
+    taskid: b2448311-2476-4534-8bd7-aae1528e1b4d
+    type: condition
+    task:
+      id: b2448311-2476-4534-8bd7-aae1528e1b4d
+      version: -1
+      name: Is Url malicious?
+      type: condition
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#default#':
+      - "59"
+      Url VT > 10:
+      - "62"
+    separatecontext: false
+    conditions:
+    - label: Url VT > 10
+      condition:
+      - - operator: greaterThanOrEqual
+          left:
+            value:
+              simple: ${VirusTotal.URL.attributes.last_analysis_stats.malicious}
+            iscontext: true
+          right:
+            value:
+              simple: "10"
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 1227.5,
+          "y": 3535
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "62":
+    id: "62"
+    taskid: a408ccb5-3925-4e43-8159-49a22bd545b4
+    type: regular
+    task:
+      id: a408ccb5-3925-4e43-8159-49a22bd545b4
+      version: -1
+      name: Add url to EDL
+      description: Add indicators to an EDL list.
+      script: '|||reputrack-add-edl-entries'
+      type: regular
+      iscommand: true
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "65"
+    scriptarguments:
+      items:
+        simple: ${Bluecoat.cs_host}
+      list_id:
+        simple: "17"
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 1995,
+          "y": 4275
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "63":
+    id: "63"
+    taskid: ac02ef26-032c-40ad-8758-54b0b1f8f548
+    type: condition
+    task:
+      id: ac02ef26-032c-40ad-8758-54b0b1f8f548
+      version: -1
+      name: VT >10 (IP)
+      type: condition
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#default#':
+      - "71"
+      VT > 10:
+      - "64"
+    separatecontext: false
+    conditions:
+    - label: VT > 10
+      condition:
+      - - operator: greaterThanOrEqual
+          left:
+            value:
+              simple: ${VirusTotal.IP.attributes.last_analysis_stats.malicious}
+            iscontext: true
+          right:
+            value:
+              simple: "10"
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 1012.5,
+          "y": 3905
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "64":
+    id: "64"
+    taskid: 4b60f6a3-da04-4606-8020-351dd563ec4b
+    type: regular
+    task:
+      id: 4b60f6a3-da04-4606-8020-351dd563ec4b
+      version: -1
+      name: Add ip to EDL
+      description: Add indicators to an EDL list.
+      script: '|||reputrack-add-edl-entries'
+      type: regular
+      iscommand: true
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "65"
+    scriptarguments:
+      items:
+        simple: ${Bluecoat.dst}
+      list_id:
+        simple: "15"
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 1565,
+          "y": 4275
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "65":
+    id: "65"
+    taskid: 3ba0ef21-4544-48ba-8ba9-cc24034ba6af
+    type: regular
+    task:
+      id: 3ba0ef21-4544-48ba-8ba9-cc24034ba6af
+      version: -1
+      name: Add note to Qradar
+      description: Creates a note on an offense.
+      script: QRadar v3|||qradar-offense-note-create
+      type: regular
+      iscommand: true
+      brand: QRadar v3
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "66"
+    scriptarguments:
+      note_text:
+        simple: True Positive - URL/IP has been blocked
+      offense_id:
+        simple: $[Offense.offense_id]
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 1780,
+          "y": 4460
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "66":
+    id: "66"
+    taskid: 749ac3e1-b123-4530-8845-506cfb9bcfff
+    type: regular
+    task:
+      id: 749ac3e1-b123-4530-8845-506cfb9bcfff
+      version: -1
+      name: Close on Qradar
+      description: Updates an offense.
+      script: QRadar v3|||qradar-offense-update
+      type: regular
+      iscommand: true
+      brand: QRadar v3
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "76"
+    scriptarguments:
+      closing_reason_id:
+        simple: "155"
+      offense_id:
+        simple: ${Offense.offense_id}
+      status:
+        simple: CLOSED
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 1780,
+          "y": 4645
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "68":
+    id: "68"
+    taskid: 624770fb-08c9-45f4-83e1-503cfa1e1205
+    type: regular
+    task:
+      id: 624770fb-08c9-45f4-83e1-503cfa1e1205
+      version: -1
+      name: Add note to Qradar
+      description: Creates a note on an offense.
+      script: QRadar v3|||qradar-offense-note-create
+      type: regular
+      iscommand: true
+      brand: QRadar v3
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "69"
+    scriptarguments:
+      note_text:
+        simple: URL/IP whitelisted
+      offense_id:
+        simple: ${Offense.offense_id}
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 2322.5,
+          "y": 3350
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "69":
+    id: "69"
+    taskid: 35d257a5-e4e3-4be8-8984-f369c944122a
+    type: regular
+    task:
+      id: 35d257a5-e4e3-4be8-8984-f369c944122a
+      version: -1
+      name: Close on Qradar
+      description: Updates an offense.
+      script: QRadar v3|||qradar-offense-update
+      type: regular
+      iscommand: true
+      brand: QRadar v3
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "75"
+    scriptarguments:
+      closing_reason_id:
+        simple: "157"
+      offense_id:
+        simple: ${Offense.offense_id}
+      status:
+        simple: CLOSED
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 2322.5,
+          "y": 3535
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "70":
+    id: "70"
+    taskid: db91313d-b904-473d-8701-e719d31893d1
+    type: condition
+    task:
+      id: db91313d-b904-473d-8701-e719d31893d1
+      version: -1
+      name: Check IP in whitelist
+      type: condition
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#default#':
+      - "60"
+      IP in whitelist:
+      - "68"
+    separatecontext: false
+    conditions:
+    - label: IP in whitelist
+      condition:
+      - - operator: inList
+          left:
+            value:
+              simple: ${Bluecoat.dst}
+            iscontext: true
+          right:
+            value:
+              simple: lists.large Downloads
+            iscontext: true
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 2322.5,
+          "y": 3165
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "71":
+    id: "71"
+    taskid: b6d13bcd-2113-4ef5-8a77-12f1785f1af1
+    type: condition
+    task:
+      id: b6d13bcd-2113-4ef5-8a77-12f1785f1af1
+      version: -1
+      name: AbuseIPDB > 20 (IP)
+      type: condition
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#default#':
+      - "72"
+      AbuseIPDB > 20:
+      - "64"
+    separatecontext: false
+    conditions:
+    - label: AbuseIPDB > 20
+      condition:
+      - - operator: greaterThanOrEqual
+          left:
+            value:
+              simple: ${AbuseIPDB.IP.AbuseConfidenceScore}
+            iscontext: true
+          right:
+            value:
+              simple: "20"
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 807.5,
+          "y": 4090
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "72":
+    id: "72"
+    taskid: a4d265b2-dea9-4ab1-93dd-b1f3c9a008c2
+    type: regular
+    task:
+      id: a4d265b2-dea9-4ab1-93dd-b1f3c9a008c2
+      version: -1
+      name: Notify Analyst| Manual Invstigation Required
+      description: commands.server.mail.sendmail
+      script: '|||send-mail'
+      type: regular
+      iscommand: true
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "73"
+    scriptarguments:
+      htmlBody:
+        simple: |+
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta http-equiv="X-UA-Compatible" content="IE=edge">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>GTBank DFIR - Manual Investigation Required</title>
+          </head>
+
+          <body style="margin:0;padding:0;background-color:#f4f5f7;font-family:Arial,Helvetica,sans-serif;">
+
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0;padding:0;background-color:#f4f5f7;font-family:Arial,Helvetica,sans-serif;">
+            <tr>
+              <td align="center" style="padding:24px 12px;">
+                <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border:1px solid #e1e4e8;border-radius:6px;overflow:hidden;">
+
+                  <!-- Header -->
+                  <tr>
+                    <td style="background-color:#854f0b;padding:18px 28px;">
+                      <span style="font-size:13px;font-weight:bold;color:#ffffff;letter-spacing:0.5px;">
+                        GTBANK DFIR &middot; ACTION REQUIRED
+                      </span>
+                      <div style="font-size:20px;font-weight:bold;color:#ffffff;margin-top:4px;">
+                        Manual investigation required.
+                      </div>
+                    </td>
+                  </tr>
+
+                  <!-- Banner -->
+                  <tr>
+                    <td style="padding:20px 28px;background-color:#faeeda;border-bottom:1px solid #ef9f27;color:#633806;font-size:14px;line-height:1.55;font-weight:bold;">
+                      This offense could not be auto-resolved. Please investigate and close it manually.
+                    </td>
+                  </tr>
+
+                  <!-- Intro -->
+                  <tr>
+                    <td style="padding:20px 28px 8px 28px;color:#24292e;font-size:14px;line-height:1.55;">
+                      QRadar offense <strong>${Offense.offense_id}</strong>
+                      (<em>${Offense.offense_description}</em>)
+                      flagged an excessive file ${XferTitle}.
+                      The indicators are not whitelisted and reputation enrichment did not return a malicious verdict above the auto-block threshold.
+                    </td>
+                  </tr>
+
+                  <!-- Offense Detail -->
+                  <tr>
+                    <td style="padding:8px 28px 4px 28px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;color:#24292e;">
+                        <tr>
+                          <td width="40%" style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Issue ID</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${issue.id}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Offense ID</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_id}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Source Host</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_hostname}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Source IP</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Bluecoat.src}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Destination IP</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Bluecoat.dst}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Destination Host</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Bluecoat.cs_host}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Destination Port</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Bluecoat.dstport}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Bytes ${XferTitle}ed</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${XferBytes}</td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+
+                  <!-- Reputation Results -->
+                  <tr>
+                    <td style="padding:16px 28px 4px 28px;color:#24292e;font-size:13px;font-weight:bold;">
+                      Reputation Results
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td style="padding:4px 28px 8px 28px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;color:#24292e;">
+                        <tr>
+                          <td width="40%" style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">
+                            VirusTotal &mdash; IP Malicious
+                          </td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">
+                            ${VirusTotal.IP.attributes.last_analysis_stats.malicious}
+                          </td>
+                        </tr>
+
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">
+                            VirusTotal &mdash; URL Malicious
+                          </td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">
+                            ${VirusTotal.URL.attributes.last_analysis_stats.malicious}
+                          </td>
+                        </tr>
+
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">
+                            AbuseIPDB Confidence
+                          </td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">
+                            ${AbuseIPDB.IP.AbuseConfidenceScore}
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+
+                  <!-- Action Required -->
+                  <tr>
+                    <td style="padding:8px 28px 4px 28px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;color:#24292e;">
+                        <tr>
+                          <td width="40%" style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">
+                            Status
+                          </td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">
+                            Manual investigation required. No automatic blocking action was taken.
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+
+                  <!-- Button -->
+                  <tr>
+                    <td style="padding:18px 28px;">
+                      <a href="${Offense.offense_link}"
+                         style="display:inline-block;background-color:#854f0b;color:#ffffff;text-decoration:none;font-size:13px;font-weight:bold;padding:10px 20px;border-radius:4px;">
+                         Open Offense in QRadar
+                      </a>
+                    </td>
+                  </tr>
+
+                  <!-- Footer -->
+                  <tr>
+                    <td style="padding:14px 28px;background-color:#f6f8fa;border-top:1px solid #e1e4e8;color:#6a737d;font-size:11px;line-height:1.5;">
+                      Assigned by QRadar Proxy Excessive ${XferTitle}s Playbook &middot; Issue ID ${issue.id}.
+                    </td>
+                  </tr>
+
+                </table>
+              </td>
+            </tr>
+          </table>
+
+          </body>
+          </html>
+
+      subject:
+        simple: '[Manual Investigation Required] Proxy Excessive ${XferTitle} - Offense
+          ${Offense.offense_id}'
+      to:
+        simple: dfir@gtbank.com
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 797.5,
+          "y": 4275
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "73":
+    id: "73"
+    taskid: 786fb435-854b-4a73-8748-0232e9bb5d22
+    type: collection
+    task:
+      id: 786fb435-854b-4a73-8748-0232e9bb5d22
+      version: -1
+      name: Add Incidnt note
+      type: collection
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "74"
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 797.5,
+          "y": 4460
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    message:
+      to: null
+      subject: null
+      body: null
+      methods: []
+      format: ""
+      bcc: null
+      cc: null
+      timings:
+        retriescount: 2
+        retriesinterval: 360
+        completeafterreplies: 1
+        completeafterv2: true
+        completeaftersla: false
+    form:
+      questions:
+      - id: "0"
+        label: ""
+        labelarg:
+          simple: What is the closing reason
+        required: false
+        gridcolumns: []
+        defaultrows: []
+        type: longText
+        options: []
+        optionsarg: []
+        fieldassociated: ""
+        placeholder: ""
+        tooltip: ""
+        readonly: false
+      title: Provide closing reason
+      description: ""
+      sender: ""
+      expired: false
+      totalanswers: 0
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "74":
+    id: "74"
+    taskid: 50bfb86f-79b2-4cc6-8d2d-e30349682f32
+    type: regular
+    task:
+      id: 50bfb86f-79b2-4cc6-8d2d-e30349682f32
+      version: -1
+      name: Set Incident Note
+      description: commands.local.cmd.set.incident
+      script: Builtin|||setIncident
+      type: regular
+      iscommand: true
+      brand: Builtin
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "77"
+    scriptarguments:
+      closeNotes:
+        simple: ${Provide closing reason.Answers}
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 797.5,
+          "y": 4645
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "75":
+    id: "75"
+    taskid: 9a871190-5a9a-475c-a5ce-a839bbdcfc13
+    type: regular
+    task:
+      id: 9a871190-5a9a-475c-a5ce-a839bbdcfc13
+      version: -1
+      name: Send Email
+      description: commands.server.mail.sendmail
+      script: '|||send-mail'
+      type: regular
+      iscommand: true
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "91"
+    scriptarguments:
+      htmlBody:
+        simple: |-
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta http-equiv="X-UA-Compatible" content="IE=edge">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>GTBank DFIR - Whitelisted Auto Closed Offense</title>
+          </head>
+
+          <body style="margin:0;padding:0;background-color:#f4f5f7;font-family:Arial,Helvetica,sans-serif;">
+
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0;padding:0;background-color:#f4f5f7;font-family:Arial,Helvetica,sans-serif;">
+            <tr>
+              <td align="center" style="padding:24px 12px;">
+                <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border:1px solid #e1e4e8;border-radius:6px;overflow:hidden;">
+
+                  <!-- Header -->
+                  <tr>
+                    <td style="background-color:#475569;padding:18px 28px;">
+                      <span style="font-size:13px;font-weight:bold;color:#ffffff;letter-spacing:0.5px;">GTBANK DFIR &middot; AUTO-CLOSED</span>
+                      <div style="font-size:20px;font-weight:bold;color:#ffffff;margin-top:4px;">
+                        Whitelisted destination &mdash; no action needed.
+                      </div>
+                    </td>
+                  </tr>
+
+                  <!-- Banner -->
+                  <tr>
+                    <td style="padding:20px 28px;background-color:#eef1f5;border-bottom:1px solid #aab4c2;color:#2d3744;font-size:14px;line-height:1.55;font-weight:bold;">
+                      The destination is on the approved large-transfer list. The offense was closed automatically as a false positive.
+                    </td>
+                  </tr>
+
+                  <!-- Intro -->
+                  <tr>
+                    <td style="padding:20px 28px 8px 28px;color:#24292e;font-size:14px;line-height:1.55;">
+                      QRadar offense <strong>${Offense.offense_id}</strong>
+                      (<em>${Offense.offense_description}</em>)
+                      flagged an excessive file ${XferTitle} to
+                      <strong>${Bluecoat.cs_host}</strong> (${Bluecoat.dst}),
+                      which matches an entry on the approved large-transfer whitelist.
+                      No investigation is required.
+                    </td>
+                  </tr>
+
+                  <!-- Offense Detail -->
+                  <tr>
+                    <td style="padding:8px 28px 4px 28px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;color:#24292e;">
+                        <tr>
+                          <td width="40%" style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Issue ID</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${issue.id}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Offense ID</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_id}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Source Host</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_hostname}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Source IP</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Bluecoat.src}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Destination Host</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Bluecoat.cs_host}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Destination IP</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Bluecoat.dst}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Bytes ${XferTitle}ed</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${XferBytes}</td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+
+                  <!-- Action Taken -->
+                  <tr>
+                    <td style="padding:16px 28px 4px 28px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;color:#24292e;">
+                        <tr>
+                          <td width="40%" style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Action Taken</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">
+                            Destination matched whitelist. Offense closed automatically. No IP blocked.
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+
+                  <!-- Button -->
+                  <tr>
+                    <td style="padding:18px 28px;">
+                      <a href="${Offense.offense_link}"
+                         style="display:inline-block;background-color:#475569;color:#ffffff;text-decoration:none;font-size:13px;font-weight:bold;padding:10px 20px;border-radius:4px;">
+                         Open Offense in QRadar
+                      </a>
+                    </td>
+                  </tr>
+
+                  <!-- Footer -->
+                  <tr>
+                    <td style="padding:14px 28px;background-color:#f6f8fa;border-top:1px solid #e1e4e8;color:#6a737d;font-size:11px;line-height:1.5;">
+                      Sent by QRadar Proxy Excessive ${XferTitle}s Playbook &middot; Issue ID ${issue.id}.
+                    </td>
+                  </tr>
+
+                </table>
+              </td>
+            </tr>
+          </table>
+
+          </body>
+          </html>
+      subject:
+        simple: '[Auto-Closed] Proxy Excessive ${XferTitle} whitelisted - Offense
+          ${Offense.offense_id}'
+      to:
+        simple: dfir@gtbank.com
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 2322.5,
+          "y": 3720
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "76":
+    id: "76"
+    taskid: 08b52435-999d-4bb6-9e09-6b87a1f58054
+    type: regular
+    task:
+      id: 08b52435-999d-4bb6-9e09-6b87a1f58054
+      version: -1
+      name: Send Email
+      description: commands.server.mail.sendmail
+      script: '|||send-mail'
+      type: regular
+      iscommand: true
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "90"
+    scriptarguments:
+      htmlBody:
+        simple: |
+          ```html
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta http-equiv="X-UA-Compatible" content="IE=edge">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>GTBank DFIR - Threat Confirmed</title>
+          </head>
+
+          <body style="margin:0;padding:0;background-color:#f4f5f7;font-family:Arial,Helvetica,sans-serif;">
+
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0;padding:0;background-color:#f4f5f7;font-family:Arial,Helvetica,sans-serif;">
+            <tr>
+              <td align="center" style="padding:24px 12px;">
+                <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border:1px solid #e1e4e8;border-radius:6px;overflow:hidden;">
+
+                  <!-- Header -->
+                  <tr>
+                    <td style="background-color:#b91c1c;padding:18px 28px;">
+                      <span style="font-size:13px;font-weight:bold;color:#ffffff;letter-spacing:0.5px;">
+                        GTBANK DFIR &middot; THREAT CONFIRMED
+                      </span>
+                      <div style="font-size:20px;font-weight:bold;color:#ffffff;margin-top:4px;">
+                        True positive &mdash; indicator blocked.
+                      </div>
+                    </td>
+                  </tr>
+
+                  <!-- Banner -->
+                  <tr>
+                    <td style="padding:20px 28px;background-color:#fdecec;border-bottom:1px solid #f5b5b5;color:#7f1d1d;font-size:14px;line-height:1.55;font-weight:bold;">
+                      Reputation enrichment returned a malicious verdict above the auto-block threshold.
+                      The indicator has been added to the blocklist (EDL) and the offense has been closed.
+                    </td>
+                  </tr>
+
+                  <!-- Intro -->
+                  <tr>
+                    <td style="padding:20px 28px 8px 28px;color:#24292e;font-size:14px;line-height:1.55;">
+                      QRadar offense <strong>${Offense.offense_id}</strong>
+                      (<em>${Offense.offense_description}</em>)
+                      flagged an excessive file ${XferTitle} from
+                      <strong>${Offense.offense_src_ip}</strong> to
+                      <strong>${Bluecoat.cs_host}</strong>
+                      (${Offense.offense_dst_ip}).
+                      The destination was confirmed malicious and automatically blocked.
+                    </td>
+                  </tr>
+
+                  <!-- Offense Detail -->
+                  <tr>
+                    <td style="padding:8px 28px 4px 28px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;color:#24292e;">
+                        <tr>
+                          <td width="40%" style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Issue ID</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${issue.id}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Offense ID</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_id}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Offense Name</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_description}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Source Host</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_hostname}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Source IP</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_src_ip}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Destination IP</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_dst_ip}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Destination Host</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Bluecoat.cs_host}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Destination Port</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_dst_port}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Bytes ${XferTitle}ed</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${XferBytes}</td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+
+                  <!-- Reputation Results -->
+                  <tr>
+                    <td style="padding:16px 28px 4px 28px;color:#24292e;font-size:13px;font-weight:bold;">
+                      Reputation Results
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td style="padding:4px 28px 8px 28px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;color:#24292e;">
+                        <tr>
+                          <td width="40%" style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">
+                            VirusTotal &mdash; IP Malicious
+                          </td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">
+                            ${VirusTotal.IP.attributes.last_analysis_stats.malicious}
+                          </td>
+                        </tr>
+
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">
+                            VirusTotal &mdash; URL Malicious
+                          </td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">
+                            ${VirusTotal.URL.attributes.last_analysis_stats.malicious}
+                          </td>
+                        </tr>
+
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">
+                            AbuseIPDB Confidence
+                          </td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">
+                            ${AbuseIPDB.IP.AbuseConfidenceScore}
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+
+                  <!-- Action Taken -->
+                  <tr>
+                    <td style="padding:8px 28px 4px 28px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;color:#24292e;">
+                        <tr>
+                          <td width="40%" style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">
+                            Action Taken
+                          </td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">
+                            Indicator added to EDL blocklist. Offense closed by playbook as a true positive.
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+
+                  <!-- Button -->
+                  <tr>
+                    <td style="padding:18px 28px;">
+                      <a href="${Offense.offense_link}"
+                         style="display:inline-block;background-color:#b91c1c;color:#ffffff;text-decoration:none;font-size:13px;font-weight:bold;padding:10px 20px;border-radius:4px;">
+                         Open Offense in QRadar
+                      </a>
+                    </td>
+                  </tr>
+
+                  <!-- Footer -->
+                  <tr>
+                    <td style="padding:14px 28px;background-color:#f6f8fa;border-top:1px solid #e1e4e8;color:#6a737d;font-size:11px;line-height:1.5;">
+                      Sent by QRadar Proxy Excessive ${XferTitle}s Playbook &middot; Issue ID ${issue.id}.
+                    </td>
+                  </tr>
+
+                </table>
+              </td>
+            </tr>
+          </table>
+
+          </body>
+          </html>
+          ```
+      subject:
+        simple: '[True Positive] Proxy Excessive ${XferTitle} blocked - Offense ${Offense.offense_id}'
+      to:
+        simple: dfir@gtbank.com
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 1780,
+          "y": 4830
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "77":
+    id: "77"
+    taskid: 2fc7ece9-a7ba-44af-861d-715374ab566b
+    type: condition
+    task:
+      id: 2fc7ece9-a7ba-44af-861d-715374ab566b
+      version: -1
+      name: Incident Verdict
+      type: condition
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      BTP - BAU:
+      - "114"
+      BTP - Security Testing:
+      - "115"
+      Fasle Positive:
+      - "116"
+      True Positive:
+      - "79"
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 797.5,
+          "y": 4830
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    message:
+      to: null
+      subject: null
+      body:
+        simple: What is the verdict of the incident
+      methods: []
+      format: ""
+      bcc: null
+      cc: null
+      timings:
+        retriescount: 2
+        retriesinterval: 360
+        completeafterreplies: 1
+        completeafterv2: true
+        completeaftersla: false
+      replyOptions:
+      - True Positive
+      - Fasle Positive
+      - BTP - BAU
+      - BTP - Security Testing
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "78":
+    id: "78"
+    taskid: 1ad4c94f-fc26-4f27-a740-6a638755502c
+    type: regular
+    task:
+      id: 1ad4c94f-fc26-4f27-a740-6a638755502c
+      version: -1
+      name: Send Email
+      description: commands.server.mail.sendmail
+      script: '|||send-mail'
+      type: regular
+      iscommand: true
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "80"
+    scriptarguments:
+      cc:
+        simple: ${Provide closing reason.Answers.name}
+      htmlBody:
+        simple: |+
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta http-equiv="X-UA-Compatible" content="IE=edge">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>GTBank DFIR - Closed True Positive</title>
+          </head>
+
+          <body style="margin:0;padding:0;background-color:#f4f5f7;font-family:Arial,Helvetica,sans-serif;">
+
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0;padding:0;background-color:#f4f5f7;font-family:Arial,Helvetica,sans-serif;">
+            <tr>
+              <td align="center" style="padding:24px 12px;">
+                <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border:1px solid #e1e4e8;border-radius:6px;overflow:hidden;">
+
+                  <!-- Header -->
+                  <tr>
+                    <td style="background-color:#b91c1c;padding:18px 28px;">
+                      <span style="font-size:13px;font-weight:bold;color:#ffffff;letter-spacing:0.5px;">
+                        GTBANK DFIR &middot; CLOSED &middot; TRUE POSITIVE
+                      </span>
+                      <div style="font-size:20px;font-weight:bold;color:#ffffff;margin-top:4px;">
+                        Confirmed malicious &mdash; closed manually.
+                      </div>
+                    </td>
+                  </tr>
+
+                  <!-- Banner -->
+                  <tr>
+                    <td style="padding:20px 28px;background-color:#fdecec;border-bottom:1px solid #f5b5b5;color:#7f1d1d;font-size:14px;line-height:1.55;font-weight:bold;">
+                      ${Provide closing reason.Answers.name} reviewed this offense and confirmed it as a true positive.
+                    </td>
+                  </tr>
+
+                  <!-- Intro -->
+                  <tr>
+                    <td style="padding:20px 28px 8px 28px;color:#24292e;font-size:14px;line-height:1.55;">
+                      QRadar offense <strong>${Offense.offense_id}</strong>
+                      (<em>${Offense.offense_description}</em>)
+                      was closed as a <strong>true positive</strong> by
+                      <strong>${incident.closingUserId}</strong>.
+                      The session ran from <strong>${Offense.offense_src_ip}</strong>
+                      to <strong>${Offense.offense_dst_ip}</strong>
+                      on port <strong>${Offense.offense_dst_port}</strong>.
+                    </td>
+                  </tr>
+
+                  <!-- Offense Details -->
+                  <tr>
+                    <td style="padding:8px 28px 4px 28px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;color:#24292e;">
+                        <tr>
+                          <td width="40%" style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Issue ID</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${issue.id}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Offense ID</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_id}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Offense Name</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_description}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Source Host</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_hostname}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Source IP</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_src_ip}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Destination IP</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_dst_ip}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Destination Port</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_dst_port}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Closed By</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Provide closing reason.Answers.name}</td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+
+                  <!-- Reputation Results -->
+                  <tr>
+                    <td style="padding:16px 28px 4px 28px;color:#24292e;font-size:13px;font-weight:bold;">
+                      Reputation Results
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td style="padding:4px 28px 8px 28px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;color:#24292e;">
+                        <tr>
+                          <td width="40%" style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">
+                            VirusTotal &mdash; IP Malicious
+                          </td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">
+                            ${VirusTotal.IP.attributes.last_analysis_stats.malicious}
+                          </td>
+                        </tr>
+
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">
+                            AbuseIPDB Confidence
+                          </td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">
+                            ${AbuseIPDB.IP.AbuseConfidenceScore}
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+
+                  <!-- Closure Information -->
+                  <tr>
+                    <td style="padding:8px 28px 4px 28px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;color:#24292e;">
+                        <tr>
+                          <td width="40%" style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">
+                            Disposition
+                          </td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">
+                            True Positive
+                          </td>
+                        </tr>
+
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">
+                            Closed By
+                          </td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">
+                            ${incident.closingUserId}
+                          </td>
+                        </tr>
+
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">
+                            Close Notes
+                          </td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">
+                            ${issue.closeNotes}
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+
+                  <!-- Button -->
+                  <tr>
+                    <td style="padding:18px 28px;">
+                      <a href="${Offense.offense_link}"
+                         style="display:inline-block;background-color:#b91c1c;color:#ffffff;text-decoration:none;font-size:13px;font-weight:bold;padding:10px 20px;border-radius:4px;">
+                         Open Offense in QRadar
+                      </a>
+                    </td>
+                  </tr>
+
+                  <!-- Footer -->
+                  <tr>
+                    <td style="padding:14px 28px;background-color:#f6f8fa;border-top:1px solid #e1e4e8;color:#6a737d;font-size:11px;line-height:1.5;">
+                      Manual Closure Notification &middot; Issue ID ${issue.id}.
+                    </td>
+                  </tr>
+
+                </table>
+              </td>
+            </tr>
+          </table>
+
+          </body>
+          </html>
+
+      subject:
+        simple: '[Closed - True Positive] Proxy Excessive ${XferTitle} - Offense ${Offense.offense_id}'
+      to:
+        simple: dfir@gtbank.com
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 1350,
+          "y": 5200
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "79":
+    id: "79"
+    taskid: 31530917-51f7-4e4a-8834-54d6d0dab98f
+    type: regular
+    task:
+      id: 31530917-51f7-4e4a-8834-54d6d0dab98f
+      version: -1
+      name: Close on Qradar
+      description: Updates an offense.
+      script: QRadar v3|||qradar-offense-update
+      type: regular
+      iscommand: true
+      brand: QRadar v3
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "78"
+    scriptarguments:
+      closing_reason_id:
+        simple: "155"
+      offense_id:
+        simple: ${Offense.offense_id}
+      status:
+        simple: CLOSED
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 1350,
+          "y": 5015
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "80":
+    id: "80"
+    taskid: 7ca68c3d-641f-4131-8d41-faa4458141c9
+    type: regular
+    task:
+      id: 7ca68c3d-641f-4131-8d41-faa4458141c9
+      version: -1
+      name: CloseInvestigation
+      description: commands.local.cmd.close.inv
+      script: Builtin|||closeInvestigation
+      type: regular
+      iscommand: true
+      brand: Builtin
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 1350,
+          "y": 5385
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "81":
+    id: "81"
+    taskid: 41dc4488-e0cd-470a-88f8-d7dbae79c898
+    type: regular
+    task:
+      id: 41dc4488-e0cd-470a-88f8-d7dbae79c898
+      version: -1
+      name: Close on Qradar
+      description: Updates an offense.
+      script: QRadar v3|||qradar-offense-update
+      type: regular
+      iscommand: true
+      brand: QRadar v3
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "82"
+    scriptarguments:
+      closing_reason_id:
+        simple: "158"
+      offense_id:
+        simple: ${Offense.offense_id}
+      status:
+        simple: CLOSED
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 1115,
+          "y": 5755
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "82":
+    id: "82"
+    taskid: c2eb4b41-3739-41f7-9650-f3896befe27e
+    type: regular
+    task:
+      id: c2eb4b41-3739-41f7-9650-f3896befe27e
+      version: -1
+      name: Send Email
+      description: commands.server.mail.sendmail
+      script: '|||send-mail'
+      type: regular
+      iscommand: true
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "83"
+    scriptarguments:
+      cc:
+        simple: ${Provide closing reason.Answers.name}
+      htmlBody:
+        simple: |2
+
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta http-equiv="X-UA-Compatible" content="IE=edge">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>GTBank DFIR - Closed False Positive</title>
+          </head>
+
+          <body style="margin:0;padding:0;background-color:#f4f5f7;font-family:Arial,Helvetica,sans-serif;">
+
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0;padding:0;background-color:#f4f5f7;font-family:Arial,Helvetica,sans-serif;">
+            <tr>
+              <td align="center" style="padding:24px 12px;">
+                <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border:1px solid #e1e4e8;border-radius:6px;overflow:hidden;">
+
+                  <!-- Header -->
+                  <tr>
+                    <td style="background-color:#0f766e;padding:18px 28px;">
+                      <span style="font-size:13px;font-weight:bold;color:#ffffff;letter-spacing:0.5px;">
+                        GTBANK DFIR &middot; CLOSED &middot; FALSE POSITIVE
+                      </span>
+                      <div style="font-size:20px;font-weight:bold;color:#ffffff;margin-top:4px;">
+                        False positive &mdash; closed manually.
+                      </div>
+                    </td>
+                  </tr>
+
+                  <!-- Banner -->
+                  <tr>
+                    <td style="padding:20px 28px;background-color:#e6f4f1;border-bottom:1px solid #5eae9e;color:#0b4a44;font-size:14px;line-height:1.55;font-weight:bold;">
+                      ${Provide closing reason.Answers.name} reviewed this offense and determined the detection did not represent a real event.
+                      No indicators were blocked. Consider rule tuning if this recurs.
+                    </td>
+                  </tr>
+
+                  <!-- Intro -->
+                  <tr>
+                    <td style="padding:20px 28px 8px 28px;color:#24292e;font-size:14px;line-height:1.55;">
+                      QRadar offense <strong>${Offense.offense_id}</strong>
+                      (<em>${Offense.offense_description}</em>)
+                      was closed as a <strong>false positive</strong> by
+                      <strong>${incident.closingUserId}</strong>.
+                      The reported session was from
+                      <strong>${Offense.offense_src_ip}</strong> to
+                      <strong>${Offense.offense_dst_ip}</strong>
+                      on port <strong>${Offense.offense_dst_port}</strong>.
+                    </td>
+                  </tr>
+
+                  <!-- Offense Details -->
+                  <tr>
+                    <td style="padding:8px 28px 4px 28px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;color:#24292e;">
+                        <tr>
+                          <td width="40%" style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Issue ID</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${issue.id}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Offense ID</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_id}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Offense Name</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_description}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Source IP</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_src_ip}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Destination IP</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_dst_ip}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Destination Port</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_dst_port}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Closed By</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Provide closing reason.Answers.name}</td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+
+                  <!-- Reputation Results -->
+                  <tr>
+                    <td style="padding:16px 28px 4px 28px;color:#24292e;font-size:13px;font-weight:bold;">
+                      Reputation Results
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td style="padding:4px 28px 8px 28px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;color:#24292e;">
+                        <tr>
+                          <td width="40%" style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">
+                            VirusTotal &mdash; IP Malicious
+                          </td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">
+                            ${VirusTotal.IP.attributes.last_analysis_stats.malicious}
+                          </td>
+                        </tr>
+
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">
+                            AbuseIPDB Confidence
+                          </td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">
+                            ${AbuseIPDB.IP.AbuseConfidenceScore}
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+
+                  <!-- Closure Information -->
+                  <tr>
+                    <td style="padding:8px 28px 4px 28px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;color:#24292e;">
+                        <tr>
+                          <td width="40%" style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">
+                            Disposition
+                          </td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">
+                            False Positive
+                          </td>
+                        </tr>
+
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">
+                            Closed By
+                          </td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">
+                            ${incident.closingUserId}
+                          </td>
+                        </tr>
+
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">
+                            Action Taken
+                          </td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">
+                            Closed as false positive. No IP blocked.
+                          </td>
+                        </tr>
+
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">
+                            Close Notes
+                          </td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">
+                            ${issue.closeNotes}
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+
+                  <!-- Button -->
+                  <tr>
+                    <td style="padding:18px 28px;">
+                      <a href="${Offense.offense_link}"
+                         style="display:inline-block;background-color:#0f766e;color:#ffffff;text-decoration:none;font-size:13px;font-weight:bold;padding:10px 20px;border-radius:4px;">
+                         Open Offense in QRadar
+                      </a>
+                    </td>
+                  </tr>
+
+                  <!-- Footer -->
+                  <tr>
+                    <td style="padding:14px 28px;background-color:#f6f8fa;border-top:1px solid #e1e4e8;color:#6a737d;font-size:11px;line-height:1.5;">
+                      Manual Closure Notification &middot; Issue ID ${issue.id}.
+                    </td>
+                  </tr>
+
+                </table>
+              </td>
+            </tr>
+          </table>
+
+          </body>
+          </html>
+      subject:
+        simple: '[Closed - False Positive] Proxy Excessive ${XferTitle} - Offense
+          ${Offense.offense_id}'
+      to:
+        simple: dfir@gtbank.com
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 1115,
+          "y": 5940
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "83":
+    id: "83"
+    taskid: ab3961a7-6ad2-47da-8ebd-c789300168e5
+    type: regular
+    task:
+      id: ab3961a7-6ad2-47da-8ebd-c789300168e5
+      version: -1
+      name: CloseInvestigation
+      description: commands.local.cmd.close.inv
+      script: Builtin|||closeInvestigation
+      type: regular
+      iscommand: true
+      brand: Builtin
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 470,
+          "y": 6125
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "84":
+    id: "84"
+    taskid: dfbf1ea1-3dc7-41ac-8836-1b8fb8cb118d
+    type: regular
+    task:
+      id: dfbf1ea1-3dc7-41ac-8836-1b8fb8cb118d
+      version: -1
+      name: Close on Qradar
+      description: Updates an offense.
+      script: QRadar v3|||qradar-offense-update
+      type: regular
+      iscommand: true
+      brand: QRadar v3
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "87"
+    scriptarguments:
+      closing_reason_id:
+        simple: "157"
+      offense_id:
+        simple: ${Offense.offense_id}
+      status:
+        simple: CLOSED
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 255,
+          "y": 5755
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "85":
+    id: "85"
+    taskid: fde4f3de-efa0-4614-8558-a268f8e53a3a
+    type: regular
+    task:
+      id: fde4f3de-efa0-4614-8558-a268f8e53a3a
+      version: -1
+      name: Close on Qradar
+      description: Updates an offense.
+      script: QRadar v3|||qradar-offense-update
+      type: regular
+      iscommand: true
+      brand: QRadar v3
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "86"
+    scriptarguments:
+      closing_reason_id:
+        simple: "159"
+      offense_id:
+        simple: ${Offense.offense_id}
+      status:
+        simple: CLOSED
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 685,
+          "y": 5755
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "86":
+    id: "86"
+    taskid: 595d789b-23f6-485c-89bd-d67d3a59a788
+    type: regular
+    task:
+      id: 595d789b-23f6-485c-89bd-d67d3a59a788
+      version: -1
+      name: Send Email
+      description: commands.server.mail.sendmail
+      script: '|||send-mail'
+      type: regular
+      iscommand: true
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "83"
+    scriptarguments:
+      cc:
+        simple: ${Provide closing reason.Answers.name}
+      htmlBody:
+        simple: |-
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta http-equiv="X-UA-Compatible" content="IE=edge">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>GTBANK DFIR - Closed Benign True Positive</title>
+          </head>
+
+          <body style="margin:0;padding:0;background-color:#f4f5f7;font-family:Arial,Helvetica,sans-serif;">
+
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0;padding:0;background-color:#f4f5f7;font-family:Arial,Helvetica,sans-serif;">
+            <tr>
+              <td align="center" style="padding:24px 12px;">
+                <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border:1px solid #e1e4e8;border-radius:6px;overflow:hidden;">
+
+                  <tr>
+                    <td style="background-color:#6d28d9;padding:18px 28px;">
+                      <span style="font-size:13px;font-weight:bold;color:#ffffff;letter-spacing:0.5px;">
+                        GTBANK DFIR &middot; CLOSED &middot; BENIGN TRUE POSITIVE
+                      </span>
+                      <div style="font-size:20px;font-weight:bold;color:#ffffff;margin-top:4px;">
+                        Security testing &mdash; closed manually.
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td style="padding:20px 28px;background-color:#f0e9fb;border-bottom:1px solid #b89ae6;color:#4a1d96;font-size:14px;line-height:1.55;font-weight:bold;">
+                      The detected activity genuinely occurred but was generated by authorized security testing (penetration test, red team, or vulnerability scan). No threat.
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td style="padding:20px 28px 8px 28px;color:#24292e;font-size:14px;line-height:1.55;">
+                      QRadar offense <strong>${Offense.offense_id}</strong>
+                      (<em>${Offense.offense_description}</em>)
+                      was closed as a <strong>benign true positive (security testing)</strong> by
+                      <strong>${incident.closingUserId}</strong>.
+                      The activity from <strong>${Offense.offense_src_ip}</strong>
+                      to <strong>${Offense.offense_dst_ip}</strong>
+                      on port <strong>${Offense.offense_dst_port}</strong>
+                      was attributed to an approved testing engagement.
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td style="padding:8px 28px 4px 28px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;color:#24292e;">
+                        <tr>
+                          <td width="40%" style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Issue ID</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${issue.id}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Offense ID</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_id}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Offense Name</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_description}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Source Host</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_hostname}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Source IP</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_src_ip}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Destination IP</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_dst_ip}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Destination Port</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_dst_port}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Closed By</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Provide closing reason.Answers.name}</td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td style="padding:16px 28px 4px 28px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;color:#24292e;">
+                        <tr>
+                          <td width="40%" style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Disposition</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">Benign True Positive — Security Testing</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Closed By</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${incident.closingUserId}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Testing Authority</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${issue.closeNotes}</td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td style="padding:18px 28px;">
+                      <a href="${Offense.offense_link}"
+                         style="display:inline-block;background-color:#6d28d9;color:#ffffff;text-decoration:none;font-size:13px;font-weight:bold;padding:10px 20px;border-radius:4px;">
+                        Open offense in QRadar
+                      </a>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td style="padding:14px 28px;background-color:#f6f8fa;border-top:1px solid #e1e4e8;color:#6a737d;font-size:11px;line-height:1.5;">
+                      Manual closure notification &middot; Issue ID ${issue.id}.
+                    </td>
+                  </tr>
+
+                </table>
+              </td>
+            </tr>
+          </table>
+
+          </body>
+          </html>
+      subject:
+        simple: '[Closed - Benign TP / Security Testing] Proxy Excessive ${XferTitle}
+          - Offense ${Offense.offense_id}'
+      to:
+        simple: dfir@gtbank.com
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 685,
+          "y": 5940
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "87":
+    id: "87"
+    taskid: 95bd9344-7bec-475a-b75a-c4fc7871f037
+    type: regular
+    task:
+      id: 95bd9344-7bec-475a-b75a-c4fc7871f037
+      version: -1
+      name: Send Email
+      description: commands.server.mail.sendmail
+      script: '|||send-mail'
+      type: regular
+      iscommand: true
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "83"
+    scriptarguments:
+      cc:
+        simple: ${Provide closing reason.Answers.name}
+      htmlBody:
+        simple: |-
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta http-equiv="X-UA-Compatible" content="IE=edge">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>GTBANK DFIR - Closed Benign True Positive (BAU)</title>
+          </head>
+
+          <body style="margin:0;padding:0;background-color:#f4f5f7;font-family:Arial,Helvetica,sans-serif;">
+
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0;padding:0;background-color:#f4f5f7;font-family:Arial,Helvetica,sans-serif;">
+            <tr>
+              <td align="center" style="padding:24px 12px;">
+                <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border:1px solid #e1e4e8;border-radius:6px;overflow:hidden;">
+
+                  <!-- Header -->
+                  <tr>
+                    <td style="background-color:#1d4ed8;padding:18px 28px;">
+                      <span style="font-size:13px;font-weight:bold;color:#ffffff;letter-spacing:0.5px;">
+                        GTBANK DFIR &middot; CLOSED &middot; BENIGN TRUE POSITIVE
+                      </span>
+                      <div style="font-size:20px;font-weight:bold;color:#ffffff;margin-top:4px;">
+                        Business as usual &mdash; closed manually.
+                      </div>
+                    </td>
+                  </tr>
+
+                  <!-- Banner -->
+                  <tr>
+                    <td style="padding:20px 28px;background-color:#e8eefc;border-bottom:1px solid #94b0ef;color:#15307d;font-size:14px;line-height:1.55;font-weight:bold;">
+                      The detected activity is legitimate business traffic (patching, backups, or software distribution). No threat detected. Tuning or whitelisting is recommended if this repeats.
+                    </td>
+                  </tr>
+
+                  <!-- Intro -->
+                  <tr>
+                    <td style="padding:20px 28px 8px 28px;color:#24292e;font-size:14px;line-height:1.55;">
+                      QRadar offense <strong>${Offense.offense_id}</strong>
+                      (<em>${Offense.offense_description}</em>)
+                      was closed as a <strong>benign true positive (business as usual)</strong> by
+                      <strong>${incident.closingUserId}</strong>.
+                      The transfer from <strong>${Offense.offense_src_ip}</strong>
+                      to <strong>${Offense.offense_dst_ip}</strong>
+                      on port <strong>${Offense.offense_dst_port}</strong>
+                      matched expected operational traffic.
+                    </td>
+                  </tr>
+
+                  <!-- Offense details -->
+                  <tr>
+                    <td style="padding:8px 28px 4px 28px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;color:#24292e;">
+                        <tr>
+                          <td width="40%" style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Issue ID</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${issue.id}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Offense ID</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_id}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Offense Name</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_description}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Source Host</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_hostname}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Source IP</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_src_ip}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Destination IP</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_dst_ip}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Destination Port</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Offense.offense_dst_port}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Closed By</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${Provide closing reason.Answers.name}</td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+
+                  <!-- Disposition -->
+                  <tr>
+                    <td style="padding:16px 28px 4px 28px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;color:#24292e;">
+                        <tr>
+                          <td width="40%" style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Disposition</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">Benign True Positive — Business as Usual</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Closed By</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${incident.closingUserId}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Tuning Recommended</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">Yes — whitelist destination if recurring</td>
+                        </tr>
+                        <tr>
+                          <td style="padding:8px 10px;background-color:#f6f8fa;border:1px solid #e1e4e8;font-weight:bold;">Close Notes</td>
+                          <td style="padding:8px 10px;border:1px solid #e1e4e8;">${issue.closeNotes}</td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+
+                  <!-- Button -->
+                  <tr>
+                    <td style="padding:18px 28px;">
+                      <a href="${Offense.offense_link}"
+                         style="display:inline-block;background-color:#1d4ed8;color:#ffffff;text-decoration:none;font-size:13px;font-weight:bold;padding:10px 20px;border-radius:4px;">
+                        Open offense in QRadar
+                      </a>
+                    </td>
+                  </tr>
+
+                  <!-- Footer -->
+                  <tr>
+                    <td style="padding:14px 28px;background-color:#f6f8fa;border-top:1px solid #e1e4e8;color:#6a737d;font-size:11px;line-height:1.5;">
+                      Manual closure notification &middot; Issue ID ${issue.id}.
+                    </td>
+                  </tr>
+
+                </table>
+              </td>
+            </tr>
+          </table>
+
+          </body>
+          </html>
+      subject:
+        simple: '[Closed - Benign TP / BAU] Proxy Excessive ${XferTitle} - Offense
+          ${Offense.offense_id}'
+      to:
+        simple: dfir@gtbank.com
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 255,
+          "y": 5940
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "90":
+    id: "90"
+    taskid: fec1c0c2-b713-45cb-87ad-7f328e92a594
+    type: regular
+    task:
+      id: fec1c0c2-b713-45cb-87ad-7f328e92a594
+      version: -1
+      name: CloseInvestigation
+      description: commands.local.cmd.close.inv
+      script: Builtin|||closeInvestigation
+      type: regular
+      iscommand: true
+      brand: Builtin
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 1780,
+          "y": 5015
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "91":
+    id: "91"
+    taskid: 7ae51ccd-fb63-46d1-857f-fb20fb81ecd5
+    type: regular
+    task:
+      id: 7ae51ccd-fb63-46d1-857f-fb20fb81ecd5
+      version: -1
+      name: CloseInvestigation
+      description: commands.local.cmd.close.inv
+      script: Builtin|||closeInvestigation
+      type: regular
+      iscommand: true
+      brand: Builtin
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 2322.5,
+          "y": 3905
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "93":
+    id: "93"
+    taskid: 05e7365b-d524-4cd4-8ffc-2c2e9ab486e4
+    type: regular
+    task:
+      id: 05e7365b-d524-4cd4-8ffc-2c2e9ab486e4
+      version: -1
+      name: Add url to whitelist
+      description: commands.local.cmd.list.add
+      script: Builtin|||addToList
+      type: regular
+      iscommand: true
+      brand: Builtin
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "118"
+    scriptarguments:
+      listData:
+        simple: ${Bluecoat.cs_host}
+      listName:
+        simple: Url-Large Downloads
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 592.5,
+          "y": 5385
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "99":
+    id: "99"
+    taskid: 202f5171-1512-432d-82c8-0bfbafcda735
+    type: condition
+    task:
+      id: 202f5171-1512-432d-82c8-0bfbafcda735
+      version: -1
+      name: Is this an upload or a download?
+      description: Determines the transfer direction from the offense description
+        so notification wording and the byte figure reflect the actual rule (GTBNIG
+        044 Upload vs GTBNIG 043 Download). Lets one playbook serve both directions.
+      type: condition
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#default#':
+      - "104"
+      Upload:
+      - "105"
+    separatecontext: false
+    conditions:
+    - label: Upload
+      condition:
+      - - operator: containsString
+          left:
+            value:
+              simple: ${Offense.offense_description}
+            iscontext: true
+          right:
+            value:
+              simple: Upload
+          ignorecase: true
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 1555,
+          "y": 2425
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "104":
+    id: "104"
+    taskid: b3477279-dd93-40b3-939f-871187f2c41a
+    type: regular
+    task:
+      id: b3477279-dd93-40b3-939f-871187f2c41a
+      version: -1
+      name: Set direction = Download
+      description: Set a value in context under the key you entered.
+      scriptName: Set
+      type: regular
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "106"
+    scriptarguments:
+      key:
+        simple: XferTitle
+      stringify:
+        simple: "true"
+      value:
+        simple: Download
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 1217.5,
+          "y": 2610
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "105":
+    id: "105"
+    taskid: ff5c7d61-131b-4ce7-b644-151828eff9da
+    type: regular
+    task:
+      id: ff5c7d61-131b-4ce7-b644-151828eff9da
+      version: -1
+      name: Set direction = Upload
+      description: Set a value in context under the key you entered.
+      scriptName: Set
+      type: regular
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "107"
+    scriptarguments:
+      key:
+        simple: XferTitle
+      stringify:
+        simple: "true"
+      value:
+        simple: Upload
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 2435,
+          "y": 2610
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "106":
+    id: "106"
+    taskid: 7d7b56aa-15b6-451f-880f-39cea34c89e2
+    type: regular
+    task:
+      id: 7d7b56aa-15b6-451f-880f-39cea34c89e2
+      version: -1
+      name: Set bytes = sc-bytes (Downloaded)
+      description: Set a value in context under the key you entered.
+      scriptName: Set
+      type: regular
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "108"
+    scriptarguments:
+      key:
+        simple: XferBytes
+      value:
+        simple: ${Bluecoat.sc_bytes}
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 1217.5,
+          "y": 2795
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "107":
+    id: "107"
+    taskid: 7f91c9f9-dcce-4464-90df-a9c2e02e9863
+    type: regular
+    task:
+      id: 7f91c9f9-dcce-4464-90df-a9c2e02e9863
+      version: -1
+      name: Set bytes = sc-bytes (Uploaded)
+      description: Set a value in context under the key you entered.
+      scriptName: Set
+      type: regular
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "58"
+    scriptarguments:
+      key:
+        simple: XferBytes
+      value:
+        simple: ${Bluecoat.cs_bytes}
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 2435,
+          "y": 2795
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "108":
+    id: "108"
+    taskid: bea56f05-487c-433e-b02d-4c5649bf3519
+    type: condition
+    task:
+      id: bea56f05-487c-433e-b02d-4c5649bf3519
+      version: -1
+      name: Check URL in Whitelist
+      type: condition
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#default#':
+      - "109"
+      Url in Whitelist:
+      - "68"
+    separatecontext: false
+    conditions:
+    - label: Url in Whitelist
+      condition:
+      - - operator: inList
+          left:
+            value:
+              simple: ${Bluecoat.cs_host}
+            iscontext: true
+          right:
+            value:
+              simple: lists.Url-Large Uploads
+            iscontext: true
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 1217.5,
+          "y": 2980
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "109":
+    id: "109"
+    taskid: 94202659-60b4-446d-bc7c-f7f87b227755
+    type: condition
+    task:
+      id: 94202659-60b4-446d-bc7c-f7f87b227755
+      version: -1
+      name: Check IP in whitelist
+      type: condition
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#default#':
+      - "60"
+      IP in whitelist:
+      - "68"
+    separatecontext: false
+    conditions:
+    - label: IP in whitelist
+      condition:
+      - - operator: inList
+          left:
+            value:
+              simple: ${Bluecoat.dst}
+            iscontext: true
+          right:
+            value:
+              simple: lists.large Uploads
+            iscontext: true
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 1105,
+          "y": 3165
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "110":
+    id: "110"
+    taskid: 99f1b00a-b251-4765-9e66-ebc7b8af7ff3
+    type: condition
+    task:
+      id: 99f1b00a-b251-4765-9e66-ebc7b8af7ff3
+      version: -1
+      name: Whitelist Actions?
+      description: commands.local.cmd.list.add
+      type: condition
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      "NO":
+      - "118"
+      YES - Whitelist URL:
+      - "93"
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 50,
+          "y": 5200
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    message:
+      to: null
+      subject: null
+      body:
+        simple: Should URL be whitelisted?
+      methods: []
+      format: ""
+      bcc: null
+      cc: null
+      timings:
+        retriescount: 2
+        retriesinterval: 360
+        completeafterreplies: 1
+        completeafterv2: true
+        completeaftersla: false
+      replyOptions:
+      - YES - Whitelist URL
+      - "NO"
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "111":
+    id: "111"
+    taskid: 811990a6-4893-46fd-8188-cfddf8c45f65
+    type: condition
+    task:
+      id: 811990a6-4893-46fd-8188-cfddf8c45f65
+      version: -1
+      name: Whitelist Actions?
+      description: commands.local.cmd.list.add
+      type: condition
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      "NO":
+      - "118"
+      YES - Whitelist URL:
+      - "93"
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 480,
+          "y": 5200
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    message:
+      to: null
+      subject: null
+      body:
+        simple: Should URL be whitelisted?
+      methods: []
+      format: ""
+      bcc: null
+      cc: null
+      timings:
+        retriescount: 2
+        retriesinterval: 360
+        completeafterreplies: 1
+        completeafterv2: true
+        completeaftersla: false
+      replyOptions:
+      - YES - Whitelist URL
+      - "NO"
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "112":
+    id: "112"
+    taskid: aa5952a6-b230-489a-8570-59563ad3ec8c
+    type: condition
+    task:
+      id: aa5952a6-b230-489a-8570-59563ad3ec8c
+      version: -1
+      name: Whitelist Actions?
+      description: commands.local.cmd.list.add
+      type: condition
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      "NO":
+      - "118"
+      YES - Whitelist URL:
+      - "93"
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 920,
+          "y": 5200
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    message:
+      to: null
+      subject: null
+      body:
+        simple: Should URL be whitelisted?
+      methods: []
+      format: ""
+      bcc: null
+      cc: null
+      timings:
+        retriescount: 2
+        retriesinterval: 360
+        completeafterreplies: 1
+        completeafterv2: true
+        completeaftersla: false
+      replyOptions:
+      - YES - Whitelist URL
+      - "NO"
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "114":
+    id: "114"
+    taskid: 8261d339-72e0-4afa-98ec-7700286590b0
+    type: regular
+    task:
+      id: 8261d339-72e0-4afa-98ec-7700286590b0
+      version: -1
+      name: Set Verdict
+      description: Set a value in context under the key you entered.
+      scriptName: Set
+      type: regular
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "110"
+    scriptarguments:
+      key:
+        simple: verdict
+      stringify:
+        simple: "true"
+      value:
+        simple: BTP - BAU
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 50,
+          "y": 5015
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "115":
+    id: "115"
+    taskid: fab6d312-6853-4b59-a81f-42dd0796cfe0
+    type: regular
+    task:
+      id: fab6d312-6853-4b59-a81f-42dd0796cfe0
+      version: -1
+      name: Set Verdict
+      description: Set a value in context under the key you entered.
+      scriptName: Set
+      type: regular
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "111"
+    scriptarguments:
+      key:
+        simple: verdict
+      stringify:
+        simple: "true"
+      value:
+        simple: BTP - Security Testing
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 480,
+          "y": 5015
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "116":
+    id: "116"
+    taskid: a4713030-fe0c-4f03-9163-2345b3b5e74b
+    type: regular
+    task:
+      id: a4713030-fe0c-4f03-9163-2345b3b5e74b
+      version: -1
+      name: Set Verdict
+      description: Set a value in context under the key you entered.
+      scriptName: Set
+      type: regular
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      '#none#':
+      - "112"
+    scriptarguments:
+      key:
+        simple: verdict
+      stringify:
+        simple: "true"
+      value:
+        simple: False Positive
+    separatecontext: false
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 920,
+          "y": 5015
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+  "118":
+    id: "118"
+    taskid: b8a1df2a-c123-4717-a6e9-e2c52457c6b7
+    type: condition
+    task:
+      id: b8a1df2a-c123-4717-a6e9-e2c52457c6b7
+      version: -1
+      name: Check verdict
+      type: condition
+      iscommand: false
+      brand: ""
+      playbooktaskmissingcomponent: null
+      istaskmissingcomponenterrordismissed: false
+    nexttasks:
+      BTP - BAU:
+      - "84"
+      BTP - Security Testing:
+      - "85"
+      False Positive:
+      - "81"
+    separatecontext: false
+    conditions:
+    - label: True Positive
+      condition:
+      - - operator: isEqualString
+          left:
+            value:
+              simple: ${verdict}
+            iscontext: true
+          right:
+            value:
+              simple: True Positive
+    - label: False Positive
+      condition:
+      - - operator: isEqualString
+          left:
+            value:
+              simple: ${verdict}
+            iscontext: true
+          right:
+            value:
+              simple: False Positive
+    - label: BTP - BAU
+      condition:
+      - - operator: isEqualString
+          left:
+            value:
+              simple: ${verdict}
+            iscontext: true
+          right:
+            value:
+              simple: BTP - BAU
+    - label: BTP - Security Testing
+      condition:
+      - - operator: isEqualString
+          left:
+            value:
+              simple: ${verdict}
+            iscontext: true
+          right:
+            value:
+              simple: BTP - Security Testing
+    continueonerrortype: ""
+    view: |-
+      {
+        "position": {
+          "x": 470,
+          "y": 5570
+        }
+      }
+    note: false
+    timertriggers: []
+    ignoreworker: false
+    skipunavailable: false
+    quietmode: 0
+    isoversize: false
+    isautoswitchedtoquietmode: false
+outlinetasks: {}
+view: |-
+  {
+    "linkLabelsPosition": {},
+    "paper": {
+      "dimensions": {
+        "height": 6150,
+        "width": 2765,
+        "x": 50,
+        "y": 50
+      }
+    }
+  }
+inputs:
+- key: Enrich
+  value:
+    simple: "false"
+  required: false
+  description: Determines whether to enrich all indicators in the incident.
+  playbookInputQuery: null
+- key: OnCall
+  value:
+    simple: "false"
+  required: false
+  description: Set to true to assign only the user that is currently on shift. Requires
+    Cortex XSOAR v5.5 or later.
+  playbookInputQuery: null
+- key: SocEmailAddress
+  value:
+    simple: dfir@gtbank.com
+  required: false
+  description: The SOC team's email address.
+  playbookInputQuery: null
+- key: SocMailSubject
+  value:
+    simple: 'XSOAR Summary report, ID - '
+  required: false
+  description: The subject of the email to send to the SOC.
+  playbookInputQuery: null
+- key: SiemAdminEmailAddress
+  value:
+    simple: dfir@gtbank.com
+  required: false
+  description: The SIEM admin's email address.
+  playbookInputQuery: null
+- key: UseCalculateSeverity
+  value:
+    simple: "true"
+  required: false
+  description: Determines whether to use the Calculate Severity playbook to calculate
+    the incident severity. If the playbook isn't used, the severity is determined
+    by the QRadar magnitude value.
+  playbookInputQuery: null
+- key: SiemAdminMailSubject
+  value:
+    simple: 'Adjustment/Exclusion for offense '
+  required: false
+  description: The subject of the email to send to the SIEM admin.
+  playbookInputQuery: null
+- key: UseCustomSeveritySettings
+  value:
+    simple: "true"
+  required: false
+  description: Determines whether to use the default mapping in the QRadar generic
+    mapper to set the XSOAR incident severity, or set the severity using the FieldToSetSeverityFrom
+    and ScaleToSetSeverityFrom playbook inputs. Any value other than false is considered
+    as true and causes the playbook inputs to be used.
+  playbookInputQuery: null
+- key: FieldToSetSeverityFrom
+  value:
+    complex:
+      root: incident
+      accessor: magnitudeoffense
+  required: false
+  description: |
+    Specifies the field to use for calculating the incident severity, for example the severity field.
+  playbookInputQuery: null
+- key: ScaleToSetSeverityFrom
+  value:
+    simple: 1,1,2,2,2,3,3,3,4,4
+  required: false
+  description: "The range of values of FieldToSetSeverityFrom is 1-10. The XSOAR incident
+    severity field value range is 0-4 where\n0 - Informational\n1 - Low\n2 - Medium\n3
+    - High\n4 - Critical\n\nThe scale translates the value of FieldToSetSeverityFrom
+    to a valid incident severity value. The default scale is 1,1,1,2,2,2,2,3,3,3 \nThis
+    means that values 1-3 of FieldToSetSeverityFrom are translated to low severity
+    (positions 1-3 in the scale), values 4-7 are translated to medium severity (positions
+    4-7 in the scale) and values 8-10 are translated to high severity (positions 8-10
+    in the scale)."
+  playbookInputQuery: null
+- key: RunAdditionalSeach
+  value:
+    simple: "false"
+  required: false
+  description: By default the incident fetches the events defined in the integration
+    instance settings (default is 20 events). To fetch additional events, change this
+    setting to true.
+  playbookInputQuery: null
+- key: MaxLogsCount
+  value:
+    simple: "50"
+  required: false
+  description: Maximum number of log entires to query from QRadar. Used for the QRadar
+    - Get Offense Logs subplaybook.
+  playbookInputQuery: null
+- key: GetOnlyCREEvents
+  value:
+    simple: OnlyNotCRE
+  required: false
+  description: |
+    If this value is "OnlyCRE", get only events made by CRE. Values can be "OnlyCRE", "OnlyNotCRE", "All". Used for the QRadar - Get Offense Logs subplaybook.
+  playbookInputQuery: null
+- key: Fields
+  value:
+    simple: QIDNAME(qid), LOGSOURCENAME(logsourceid), CATEGORYNAME(highlevelcategory),
+      CATEGORYNAME(category), PROTOCOLNAME(protocolid), sourceip, sourceport, destinationip,
+      destinationport, QIDDESCRIPTION(qid), username, PROTOCOLNAME(protocolid), RULENAME("creEventList"),
+      sourcegeographiclocation, sourceMAC, sourcev6, destinationgeographiclocation,
+      destinationv6, LOGSOURCETYPENAME(devicetype), credibility, severity, magnitude,
+      eventcount, eventDirection, postNatDestinationIP, postNatDestinationPort, postNatSourceIP,
+      postNatSourcePort, preNatDestinationPort, preNatSourceIP, preNatSourcePort,
+      UTF8(payload), starttime, devicetime
+  required: false
+  description: |
+    A comma-separated list of extra fields to get from each event. You can use different fields or rename the existing fields. Used for the QRadar - Get Offense Logs subplaybook.
+  playbookInputQuery: null
+- key: IndicatorTag
+  value:
+    simple: block
+  required: false
+  description: The tag to provide for true positive indicators, for example to use
+    the indicators in an EDL (External Dynamic List).
+  playbookInputQuery: null
+- key: ExcludeIndicatorsInXSOAR
+  value:
+    simple: "false"
+  required: false
+  description: If this value is not false, add indicators to the XSOAR exclude list.
+    The excluded indicators won't be created in XSOAR anymore.
+  playbookInputQuery: null
+inputSections:
+- inputs:
+  - Enrich
+  - OnCall
+  - SocEmailAddress
+  - SocMailSubject
+  - SiemAdminEmailAddress
+  - UseCalculateSeverity
+  - SiemAdminMailSubject
+  - UseCustomSeveritySettings
+  - FieldToSetSeverityFrom
+  - ScaleToSetSeverityFrom
+  - RunAdditionalSeach
+  - MaxLogsCount
+  - GetOnlyCREEvents
+  - Fields
+  - IndicatorTag
+  - ExcludeIndicatorsInXSOAR
+  name: General (Inputs group)
+  description: Generic group for inputs
+outputSections:
+- outputs: []
+  name: General (Outputs group)
+  description: Generic group for outputs
+outputs: []
+sourceplaybookid: QRadar Generic
+dirtyInputs: true
+adopted: true
+possibleresponses: []
