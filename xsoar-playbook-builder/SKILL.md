@@ -1,13 +1,44 @@
 ---
 name: xsoar-playbook-builder
-description: Builds a complete, importable Cortex XSOAR playbook YAML and all supporting HTML email templates from a playbook idea and sample QRadar offense data. Follows the organisation's established task patterns and best security practices. Invoke with /xsoar-playbook-builder.
+description: Builds a complete, importable Cortex XSOAR playbook YAML and all supporting HTML email templates from a playbook idea and sample alert/offense data, then validates the task graph and dry-runs it against scenarios before handing it over. Follows the organisation's established task patterns and best security practices. Invoke with /xsoar-playbook-builder.
 trigger: /xsoar-playbook-builder
 argument-hint: "<brief description of the offense the playbook should handle>"
 ---
 
 # /xsoar-playbook-builder
 
-Build a production-ready Cortex XSOAR playbook for a QRadar offense by **adapting the closest existing reference playbook** — never building from a blank template. The reference playbooks in `reference-playbooks/` are the canonical structural model. Output: a new folder containing the main `.yml` playbook, `scripts/` with any custom automation scripts, and `emails-html/` with one HTML template per closure path.
+Build a production-ready Cortex XSOAR playbook by **adapting the closest existing reference playbook** — never building from a blank template. The reference playbooks in `reference-playbooks/` are the canonical structural model. Output: a new folder containing the main `.yml` playbook, `scripts/` with any custom automation scripts, and `emails-html/` with one HTML template per closure path.
+
+---
+
+## Rule 0 — Only Include Integrations the Playbook Actually Needs
+
+**This overrides every "always include" instruction below.** The reference playbooks are QRadar-sourced Bluecoat proxy playbooks that block via Reputrack. Not every playbook is. Copying a reference wholesale drags in integrations the new alert has no use for, and a task calling an integration that is not wired up (or not licensed) in the tenant fails at runtime.
+
+Before including any integration, confirm it belongs:
+
+| Component | Include only when | Otherwise |
+|---|---|---|
+| `QRadar v3\|\|\|*` (offense update, note create) | The alert is a **QRadar offense** | Drop all QRadar tasks. Close via `closeInvestigation` alone, or the source SIEM's own command |
+| `QradarGetIssueCustomFields` | Same — QRadar-sourced | Drop the context-retrieval phase, or replace with the equivalent for the real source |
+| `RunAdditionalSeach` input + `QRadar - Get Offense Logs` | QRadar-sourced **and** extra log retrieval is wanted | Drop the input *and* the sub-playbook together — never leave one without the other |
+| `\|\|\|reputrack-add-edl-entries` | The org's **Reputrack** EDL integration is the intended blocking path | Use the tenant's actual blocking integration, or drop the auto-block path entirely and route to manual |
+| `ParseBluecoatPayload` | The log source is Bluecoat/Symantec pipe-delimited | Write the parser for the real format (Step 5c), or drop parsing if the fields already arrive structured |
+| `PaloAltoNGFWURLReputation\|\|\|url` | Web/proxy offense **and** PAN-DB is licensed | Skip straight to VT reputation |
+| VT / AbuseIPDB reputation | The alert carries the matching indicator type | Skip that phase — do not enrich indicators the alert does not contain |
+| Closing reason IDs `155/157/158/159` | Closing a **QRadar** offense | These are QRadar-specific. A non-QRadar playbook has no `closing_reason_id` at all |
+
+**When in doubt, ask — never assume.** If you cannot tell from the sample data and the user's description whether an integration is present, licensed, or wanted, add it to the Step 1 questions. It is always cheaper to ask than to ship a playbook that fails on import or silently no-ops a containment step.
+
+Corollary: if a phase has nothing to do for this alert type, **delete the phase** rather than including it wired to a pass-through. Dead tasks mislead the next person who tunes the playbook.
+
+---
+
+## Reputrack — Org-Built Integration
+
+`reputrack-add-edl-entries` is a **custom, in-house integration**. It is deliberately absent from xsoar.pan.dev, so its absence there is **not** a red flag and must not be reported as UNVERIFIED. Treat it as known-good when the target tenant has it.
+
+What still applies: confirm with the user that Reputrack is deployed in the target tenant and get the real `list_id` values (Step 1, Category B). Never guess a list ID — a wrong one silently blocks nothing, or blocks the wrong list. The same holds for `QradarGetIssueCustomFields` and `ParseBluecoatPayload`, both org-built and shipped with this skill.
 
 ---
 
@@ -47,11 +78,29 @@ Read them in full (use chunked reads — both exceed 3000 lines). Build a mental
 
 If the new offense does not clearly match either reference, ask the user which flow is closer before proceeding.
 
+#### Known defect in the reference — do not inherit it
+
+`QRadar_Proxy_Excesive_Downloads_and_Uploads.yml` task `118` (`Check verdict`) declares a `True Positive` condition label but has **no `nexttasks` entry for it**, and no `#default#`. An analyst selecting True Positive there stalls the playbook with the offense left open. It also duplicates the correctly-wired `Incident Verdict` ask task (`77`).
+
+When adapting this reference: wire every declared branch, or drop task `118` entirely if `Incident Verdict` already covers the verdict routing. Running `validate_playbook.py` against the reference reproduces this as a CRITICAL finding — use that output to confirm you have not carried it forward. Mention the defect to the user, since their live playbook has it too.
+
 ---
 
 ### Step 1 — Ask Clarification Questions
 
 Ask all questions in a single message, grouped by category. Do not ask questions whose answers can be reliably inferred from the sample issues.
+
+#### Category 0 — Integration Scope (always ask, unless obvious from the samples)
+
+These decide which phases exist at all. Get them before anything else — see Rule 0.
+
+0a. **Alert source** — Is this a QRadar offense, or another source (Cortex XDR, Defender, CrowdStrike, a custom feed)? If not QRadar, all QRadar tasks, closing reason IDs, and the `RunAdditionalSeach` input come out.
+
+0b. **Blocking integration** — Is Reputrack the blocking path in this tenant, or something else (PAN-OS EDL, a different EDL service)? If no blocking integration is available, say so — the playbook routes those verdicts to manual containment instead of auto-blocking.
+
+0c. **Available reputation integrations** — Which of VirusTotal, AbuseIPDB, PAN-DB are actually licensed and configured? Only enrich with what exists.
+
+0d. **Log retrieval** — Should the playbook pull additional logs beyond what the alert carries? If no, the log-retrieval phase and its input are both omitted.
 
 #### Category A — Offense Identification (always ask)
 
@@ -162,7 +211,7 @@ The `<offense_name>` folder name should match the offense description, using the
 
 ### Step 5 — Generate Helper Scripts
 
-#### 5a. QradarGetIssueCustomFields (always include)
+#### 5a. QradarGetIssueCustomFields (QRadar-sourced playbooks only — see Rule 0)
 
 Copy verbatim from this skill's own directory:
 ```
@@ -274,7 +323,7 @@ Do **not** assemble the playbook from the generic task templates below as a firs
    - QRadar note task → `qradar-offense-update` close task → `send-mail` task → `CloseInvestigation` terminal task — this 4-step chain is the same in every closure path
    - The `Builtin|||setIncident` closeNotes task before the verdict condition
    - The verdict condition reply options and branch labels (including `Fasle Positive`)
-   - The `inputs:` block (all keys, including `RunAdditionalSeach`)
+   - The `inputs:` block — but only the keys whose phases survive Rule 0
    - `sourceplaybookid: QRadar Generic`
 4. **Generate fresh UUIDs** for every task — never reuse UUIDs from the reference playbooks.
 5. **Renumber task IDs sequentially** from `"0"` — do not preserve the reference playbook's task ID numbers.
@@ -328,7 +377,9 @@ adopted: true
 possibleresponses: []
 ```
 
-#### Standard inputs block (always include all of these):
+#### Standard inputs block
+
+Include the inputs the playbook actually uses. The block below is the full QRadar-sourced set; per Rule 0, drop the ones whose phases you removed — `RunAdditionalSeach`, `MaxLogsCount`, `GetOnlyCREEvents`, and `Fields` all belong to the QRadar log-retrieval phase and come out together with it.
 
 ```yaml
 inputs:
@@ -978,24 +1029,123 @@ If the YAML fails to parse, fix the indentation or structure error and re-valida
 
 ---
 
-### Step 9 — Verify Completeness
+### Step 9 — Validate the Task Graph (automated)
 
-Before reporting done:
+Do not hand-check the graph. Run the validator that ships with this skill:
 
-- [ ] Every task in the task map has a valid `nexttasks` pointing to an existing task ID (or is terminal with no `nexttasks`).
-- [ ] Every branch of every condition task has a `nexttasks` entry.
-- [ ] The `starttaskid` is `"0"` and task `"0"` exists.
-- [ ] Every `taskid` and inner `task.id` is a valid UUID4.
-- [ ] All QRadar closing reason IDs used appear in at least one `qradar-offense-update` task.
-- [ ] Every closure path ends at a `CloseInvestigation` terminal task.
-- [ ] All EDL list IDs in `reputrack-add-edl-entries` tasks match the values confirmed in the blueprint.
-- [ ] All whitelist list names in `inList` conditions match the values confirmed in the blueprint.
-- [ ] The `send-mail` task for each closure path references the correct HTML body (inline) and subject line.
-- [ ] The `RunAdditionalSeach` input key (with spelling error) is present in the inputs block.
-- [ ] `Fasle Positive` (with spelling error) is present in the verdict condition reply options.
-- [ ] YAML parses without error.
+```bash
+python3 ~/.claude/skills/xsoar-playbook-builder/scripts/validate_playbook.py "<path>/<OffenseName>.yml"
+```
+
+It parses the YAML into a task graph and reports, ranked by severity:
+
+| Code | Severity | What it catches |
+|---|---|---|
+| `dangling-edge` | CRITICAL | `nexttasks` pointing at a task ID that does not exist |
+| `unwired-branch` | CRITICAL | A condition label with no `nexttasks` — the defect in the downloads reference |
+| `cycle` | CRITICAL | A loop with no exit — the playbook never terminates |
+| `duplicate-uuid` | CRITICAL | Two tasks sharing a UUID; XSOAR drops all but one on import |
+| `no-terminal` | CRITICAL | No `CloseInvestigation` anywhere — investigations never close |
+| `no-default-branch` | HIGH | A condition with no `#default#`; non-matching alerts are silently dropped |
+| `dead-end` | HIGH | A non-terminal task with no `nexttasks` — the incident stalls with no analyst signal |
+| `unreachable` | HIGH | A task never reached from the start task |
+| `missing-input` | HIGH | `QRadar - Get Offense Logs` called without the `RunAdditionalSeach` input |
+| `verdict-label-drift` | HIGH | Reply option spelled `False Positive` where the org uses `Fasle Positive` |
+| `unknown-close-reason` | HIGH | A `closing_reason_id` outside `155/157/158/159` |
+| `unused-input` | MEDIUM | `RunAdditionalSeach` defined on a playbook that never calls QRadar (Rule 0) |
+| `close-without-note` | MEDIUM | An offense closed with no note or closeNotes anywhere upstream |
+| `shared-context` | MEDIUM | A sub-playbook running with `separatecontext: false` |
+| `UNVERIFIED` | MEDIUM | A command neither on xsoar.pan.dev nor a known org integration — **ask the user** |
+| `org-custom` | INFO | Reputrack and the org automations; expected, no action |
+
+The QRadar-specific checks only fire when the playbook actually calls QRadar, so a non-QRadar playbook is not nagged about conventions that do not apply to it.
+
+**Exit criteria: zero CRITICAL and zero HIGH findings.** MEDIUM findings must each be either fixed or explained to the user. `UNVERIFIED` always warrants a question — never assume the command exists.
+
+Verify the checker itself with `--self-test` if you have modified it.
+
+---
+
+### Step 10 — Dry-Run the Branches
+
+Static checks prove the graph is wired; they do not prove it routes correctly. Write a scenario file covering **every closure path** and run it:
+
+```bash
+python3 ~/.claude/skills/xsoar-playbook-builder/scripts/validate_playbook.py \
+    "<path>/<OffenseName>.yml" -s "<path>/scenarios.json"
+```
+
+`scenarios.json` is a list of scenario objects:
+
+```json
+[
+  {"name": "Destination whitelisted — auto-close BTP-BAU",
+   "branches": {"Check URL in Whitelist": "yes"},
+   "expected_path": ["0", "1", "14", "40", "41", "42"]},
+
+  {"name": "VT above threshold — auto-block and close TP",
+   "branches": {"Check URL in Whitelist": "#default#", "VT URL malicious >= 10": "yes"}},
+
+  {"name": "Nothing conclusive — manual investigation",
+   "branches": {}}
+]
+```
+
+- `branches` maps a condition task's **name** (or ID) to the branch label to take. Unlisted conditions fall through to `#default#`.
+- `expected_path` is optional. Omit it on the first run to capture the actual path, then paste that path back in as the expectation once you have confirmed it is correct — that locks the routing against future edits.
+
+Cover, at minimum: each whitelist path, each auto-block threshold path, each manual verdict, and one edge case where the indicator field is absent so the parse/enrichment conditions fall through.
+
+The simulator refuses to guess on a condition that fans out to multiple tasks, reporting it as a race — parallel branches sharing context is a real defect worth surfacing rather than papering over.
+
+Two guards stop a scenario from passing without testing anything:
+
+- **Unknown condition name** — a `branches` key matching no task in the playbook FAILs, rather than silently falling through to `#default#`. Catches typos and names copied from a different playbook.
+- **Unreached condition** — if the walk finishes without ever visiting a condition the scenario chose a branch for, it FAILs. This means the path never went where you intended, so the scenario proved nothing. Steer the earlier conditions until the walk actually reaches it.
+
+A scenario that FAILs on either guard is a broken *test*, not necessarily a broken playbook — fix the scenario and re-run.
+
+**State plainly in your handover that this is logic validation only, not a substitute for testing in a live XSOAR tenant.** It cannot prove an integration command exists, that its arguments are valid, or that its real output matches what the playbook expects downstream.
+
+---
+
+### Step 11 — Final File Checks
+
+The validator covers the graph. These are the things it cannot see:
+
+- [ ] YAML parses (`python3 -c "import yaml; yaml.safe_load(open('<file>'))"`) — the validator does this implicitly, but check standalone if it errored.
+- [ ] All EDL list IDs match the values confirmed in the blueprint (the validator cannot know the right ones).
+- [ ] All whitelist list names in `inList` conditions match the blueprint exactly, including spaces and capitalisation.
+- [ ] Each `send-mail` task carries the correct inline HTML body and subject line.
+- [ ] Manual investigation subject lines begin with `[Manual Investigation Required]`.
 - [ ] `emails-html/` contains one file per closure path.
-- [ ] `scripts/` contains all helper scripts.
+- [ ] `scripts/` contains every helper script the playbook references — and none it does not (Rule 0).
+
+---
+
+## Command Reference — Verified vs Org-Custom
+
+Cite the source for every command you use. Confirmed on xsoar.pan.dev:
+
+| Command / component | Reference |
+|---|---|
+| `QRadar v3\|\|\|qradar-offense-update` (incl. `closing_reason_id`) | https://xsoar.pan.dev/docs/reference/integrations/q-radar-v3 |
+| `QRadar v3\|\|\|qradar-offense-note-create` | https://xsoar.pan.dev/docs/reference/integrations/q-radar-v3 |
+| `Builtin\|\|\|setIncident` | https://xsoar.pan.dev/docs/reference/scripts/set-incident |
+| `Builtin\|\|\|extractIndicators` | https://xsoar.pan.dev/docs/reference/scripts/extract-indicators |
+| `Set` | https://xsoar.pan.dev/docs/reference/scripts/set |
+| `\|\|\|send-mail` | https://xsoar.pan.dev/docs/reference/integrations/mail-sender-v2 |
+| `\|\|\|url` / `\|\|\|ip` (VirusTotal) | https://xsoar.pan.dev/docs/reference/integrations/virus-total-v3 |
+| `QRadar - Get Offense Logs` | https://xsoar.pan.dev/docs/reference/playbooks/q-radar---get-offense-logs |
+| `QRadar Generic` (the `sourceplaybookid`) | https://xsoar.pan.dev/docs/reference/playbooks/q-radar-generic |
+| Generic EDL service (non-Reputrack tenants) | https://xsoar.pan.dev/docs/reference/integrations/edl |
+
+**Org-built, intentionally not on xsoar.pan.dev** — treat as known-good, do not flag:
+`reputrack-add-edl-entries` (Reputrack), `QradarGetIssueCustomFields`, `ParseBluecoatPayload`.
+
+**Anything else:** if a command is neither in the table above nor an org integration, search xsoar.pan.dev before using it. If you cannot confirm it, label it **UNVERIFIED** in your output and ask the user whether it exists in their tenant. Do not invent commands, argument names, or context paths. A plausible-looking command that does not exist fails at runtime, mid-containment.
+
+Keep `VERIFIED_COMMANDS` and `KNOWN_CUSTOM` in `scripts/validate_playbook.py` in sync with this table as new integrations come into use.
 
 ---
 
